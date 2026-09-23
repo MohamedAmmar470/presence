@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12161C">
+<title>حضور</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{bg:'#12161C',surf:'#1B2129',acc:'#7FB8AE',ok:'#4CC38A',warn:'#E5A663',mut:'#8F9AA5'}}}}</script>
+<style>html,body{height:100%;background:#12161C}body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.tnum{font-variant-numeric:tabular-nums}</style>
+</head>
+<body class="text-[#E8ECEF] overflow-hidden">
+
+<!-- شاشة الإعداد / الأخطاء -->
+<div id="setup" class="hidden h-full flex-col items-center justify-center p-6 text-center gap-4">
+  <h2 class="text-2xl font-bold">حضور</h2>
+  <p id="setupMsg" class="text-mut leading-7"></p>
+  <button onclick="location.reload()" class="rounded-xl bg-acc text-bg font-semibold px-6 py-3">إعادة المحاولة</button>
+</div>
+
+<div id="app" class="h-full max-w-md mx-auto">
+  <!-- الشاشة الرئيسية -->
+  <section id="home" class="h-full flex flex-col">
+    <header class="flex items-center justify-between px-4 py-3">
+      <h1 class="text-xl font-bold">حضور</h1>
+      <div class="flex items-center gap-2 text-sm"><span id="dot" class="w-2.5 h-2.5 rounded-full bg-mut"></span><span id="status" class="text-mut">جارٍ الاتصال...</span></div>
+    </header>
+    <div id="invites" class="px-4 space-y-2"></div>
+    <div id="online" class="px-4 py-2 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div id="posts" class="flex-1 overflow-y-auto px-4 py-2 space-y-3"></div>
+    <form id="postForm" class="flex gap-2 p-3 bg-surf">
+      <input id="postInput" maxlength="500" autocomplete="off" placeholder="اكتب فكرة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5">نشر</button>
+    </form>
+  </section>
+
+  <!-- شاشة المحادثة -->
+  <section id="chat" class="hidden h-full flex-col">
+    <header class="bg-surf px-4 pt-3 pb-3 text-center">
+      <div class="flex items-center justify-between text-sm text-mut">
+        <span id="chatTitle"></span>
+        <button id="closeChat" class="text-warn">إنهاء وحذف</button>
+      </div>
+      <div id="timer" class="tnum text-5xl font-bold text-acc my-1">05:00</div>
+      <div class="h-1 bg-bg rounded"><div id="bar" class="h-1 rounded bg-acc transition-all" style="width:100%"></div></div>
+    </header>
+    <div id="msgs" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+    <form id="chatForm" class="flex gap-2 p-3 bg-surf">
+      <input id="chatInput" maxlength="1000" autocomplete="off" placeholder="اكتب رسالة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5">إرسال</button>
+    </form>
+  </section>
+</div>
+
+<div id="toast" class="hidden fixed bottom-24 inset-x-0 mx-auto w-max max-w-[85%] rounded-xl bg-surf border border-acc px-4 py-2 text-sm"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, onValue, get, set, push, update, remove, onDisconnect, runTransaction, query, limitToLast, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// ═══════════ ضع مفاتيح مشروعك هنا (Project settings ← Your apps ← Web) ═══════════
+const firebaseConfig = {
+  apiKey: "AIzaSyA0GV_6FiuCD918bE0k5m3wJH4kjptuYN0",
+  authDomain: "presence-12009.firebaseapp.com",
+  databaseURL: "https://presence-12009-default-rtdb.firebaseio.com",
+  projectId: "presence-12009",
+  appId: "1:720310475903:web:8f44e979a4587bf9d1b34a"
+};
+// ══════════════════════════════════════════════════════════════════════════════════
+
+const CHAT_MS = 300000; // 5 دقائق
+const $ = id => document.getElementById(id);
+const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tm = t => t ? new Date(t).toLocaleTimeString('ar', {hour:'2-digit', minute:'2-digit'}) : '';
+const toast = m => { const t = $('toast'); t.textContent = m; t.classList.remove('hidden'); clearTimeout(t._x); t._x = setTimeout(() => t.classList.add('hidden'), 3000); };
+
+const errors = {
+  'auth/operation-not-allowed': 'فعّل Anonymous من Authentication ← Sign-in method',
+  'auth/unauthorized-domain': 'أضف نطاق هذه الصفحة في Authentication ← Settings ← Authorized domains',
+  'auth/network-request-failed': 'لا يوجد اتصال بالإنترنت',
+  'auth/operation-not-supported-in-this-environment': 'افتح الصفحة عبر رابط https وليس كملف محلي'
+};
+const fail = msg => { $('app').classList.add('hidden'); $('setup').classList.replace('hidden', 'flex'); $('setupMsg').textContent = msg; };
+
+if (Object.values(firebaseConfig).some(v => String(v).startsWith('YOUR_'))) {
+  fail('أكمل قيم firebaseConfig في أعلى الملف (databaseURL) ثم أعد فتحه.');
+} else {
+  const auth = getAuth(initializeApp(firebaseConfig));
+  const db = getDatabase();
+  let uid = null, offset = 0, users = {}, posts = [], invites = {}, room = null;
+  const nm = u => u === uid ? 'أنت' : 'زائر ' + u.slice(0, 4);
+  const now = () => Date.now() + offset;
+
+  onValue(ref(db, '.info/serverTimeOffset'), s => offset = s.val() || 0);
+  // دخول مجهول دائم: Firebase يحفظ الجلسة ويعيد نفس المستخدم في كل زيارة
+  onAuthStateChanged(auth, u => u ? init(u.uid) : signInAnonymously(auth).catch(e => fail(errors[e.code] || 'تعذّر الدخول: ' + (e.code || e.message))));
+
+  function init(id) {
+    if (uid) return;
+    uid = id;
+    const me = ref(db, 'users/' + uid);
+
+    // ── تتبع الحضور: isOnline true عند الاتصال، وfalse تلقائيًا عند الإغلاق/الانقطاع ──
+    onValue(ref(db, '.info/connected'), async s => {
+      const on = s.val() === true;
+      $('dot').className = 'w-2.5 h-2.5 rounded-full ' + (on ? 'bg-ok' : 'bg-mut');
+      $('status').className = on ? 'text-ok' : 'text-mut';
+      $('status').textContent = on ? 'متصل الآن' : 'غير متصل';
+      if (!on) return;
+      try {
+        await onDisconnect(me).update({ isOnline: false, lastSeen: serverTimestamp() });
+        await update(me, { isOnline: true });
+      } catch (e) { toast('تعذّر تحديث حالة الاتصال (راجع القواعد)'); }
+    });
+
+    onValue(ref(db, 'users'), s => { users = s.val() || {}; renderOnline(); renderPosts(); });
+    onValue(query(ref(db, 'posts'), limitToLast(50)), s => {
+      posts = Object.values(s.val() || {}).sort((a, b) => (b.timestamp || 1e15) - (a.timestamp || 1e15));
+      renderPosts();
+    });
+    onValue(ref(db, 'invites/' + uid), s => { invites = s.val() || {}; renderInvites(); });
+  }
+
+  // ── عرض المتصلين والمنشورات (منشورات المتصلين الآن فقط) ──
+  function renderOnline() {
+    const list = Object.keys(users).filter(u => u !== uid && users[u].isOnline);
+    $('online').innerHTML = list.length
+      ? list.map(u => `<button data-u="${h(u)}" class="shrink-0 flex items-center gap-2 rounded-full bg-surf px-3 py-1.5 text-sm"><span class="w-2 h-2 rounded-full bg-ok"></span>${h(nm(u))}</button>`).join('')
+      : '<span class="text-mut text-sm">لا أحد متصل غيرك الآن</span>';
+  }
+  function renderPosts() {
+    const list = posts.filter(p => users[p.uid]?.isOnline);
+    $('posts').innerHTML = list.length ? list.map(p => `
+      <div class="rounded-2xl bg-surf p-3.5">
+        <div class="flex items-center justify-between text-sm mb-2">
+          <button data-u="${h(p.uid)}" class="flex items-center gap-2 font-semibold ${p.uid === uid ? 'text-acc' : ''}"><span class="w-2 h-2 rounded-full bg-ok"></span>${h(nm(p.uid))}</button>
+          <span class="text-mut text-xs">${tm(p.timestamp)}</span>
+        </div>
+        <p class="leading-7 break-words">${h(p.text)}</p>
+      </div>`).join('')
+      : '<p class="text-center text-mut mt-10">لا توجد منشورات من متصلين الآن. كن أول من يكتب</p>';
+  }
+  function renderInvites() {
+    const list = Object.entries(invites).filter(([, v]) => v.timestamp && now() - v.timestamp < CHAT_MS);
+    $('invites').innerHTML = list.map(([k]) => `
+      <div class="flex items-center gap-2 rounded-xl border border-acc bg-surf px-3 py-2">
+        <span class="flex-1 truncate">${h(nm(k))} يريد محادثتك</span>
+        <button data-no="${h(k)}" class="text-mut px-2">تجاهل</button>
+        <button data-yes="${h(k)}" class="rounded-lg bg-acc text-bg font-semibold px-4 py-1.5 text-sm">فتح</button>
+      </div>`).join('');
+  }
+
+  document.addEventListener('click', e => {
+    const u = e.target.closest('[data-u]'), y = e.target.closest('[data-yes]'), n = e.target.closest('[data-no]');
+    if (u) openChat(u.dataset.u);
+    if (y) { remove(ref(db, `invites/${uid}/${y.dataset.yes}`)); enterRoom(y.dataset.yes); }
+    if (n) remove(ref(db, `invites/${uid}/${n.dataset.no}`));
+  });
+
+  $('postForm').onsubmit = e => {
+    e.preventDefault();
+    const t = $('postInput').value.trim();
+    if (!t) return;
+    $('postInput').value = '';
+    push(ref(db, 'posts'), { text: t, uid, timestamp: serverTimestamp() }).catch(() => toast('تعذّر النشر'));
+  };
+
+  // ── المحادثة المؤقتة ──
+  function openChat(other) {
+    if (other === uid) return toast('هذا أنت. اضغط على مستخدم آخر');
+    // دعوة للطرف الآخر ثم دخول الغرفة
+    set(ref(db, `invites/${other}/${uid}`), { fromUid: uid, timestamp: serverTimestamp() }).catch(() => {});
+    enterRoom(other);
+  }
+
+  async function enterRoom(other) {
+    if (room) return;
+    const id = [uid, other].sort().join('_');           // معرّف غرفة ثابت للطرفين
+    const roomRef = ref(db, 'chats/' + id), expRef = ref(db, `chats/${id}/expiresAt`);
+    room = { id, seen: false, done: false, exp: 0 };
+    $('chatTitle').textContent = 'محادثة مع ' + nm(other);
+    $('msgs').innerHTML = ''; $('home').classList.replace('flex', 'hidden'); $('chat').classList.replace('hidden', 'flex');
+    const mine = room;
+    try {
+      // وقت الانتهاء مشترك: أول من يفتح الغرفة يحدده والثاني يستخدم نفسه
+      const t = now(), cur = await get(expRef);
+      if (cur.exists() && cur.val() <= t) await remove(roomRef);   // غرفة قديمة منتهية
+      await runTransaction(expRef, v => (v && v > t) ? v : t + CHAT_MS);
+    } catch (e) { toast('تعذّر فتح المحادثة'); return leave(); }
+    if (room !== mine) return;
+    room.unsub = onValue(roomRef, s => {
+      const v = s.val();
+      if (!v) { if (room?.seen) { toast('أُغلقت المحادثة'); leave(); } return; }   // الطرف الآخر أنهاها
+      room.seen = true; room.exp = v.expiresAt; renderMsgs(v.messages || {});
+    });
+    room.timer = setInterval(tick, 500);
+  }
+
+  function tick() {
+    if (!room?.exp) return;
+    const left = Math.max(0, Math.min(300, Math.ceil((room.exp - now()) / 1000)));
+    $('timer').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+    $('bar').style.width = (left / 3) + '%';
+    const c = left <= 60 ? 'warn' : 'acc';
+    $('timer').className = `tnum text-5xl font-bold my-1 text-${c}`;
+    $('bar').className = `h-1 rounded transition-all bg-${c}`;
+    if (left <= 0) finish();
+  }
+
+  // انتهاء الوقت أو إغلاق المحادثة: حذف الغرفة وكل رسائلها ثم إغلاق الشاشة
+  async function finish() {
+    if (!room || room.done) return;
+    const id = room.id;
+    room.done = true; leave();
+    try { await remove(ref(db, 'chats/' + id)); } catch (e) { toast('تعذّر حذف المحادثة'); }
+  }
+  function leave() {
+    if (room) { clearInterval(room.timer); room.unsub?.(); }
+    room = null;
+    $('chat').classList.replace('flex', 'hidden'); $('home').classList.replace('hidden', 'flex');
+  }
+  $('closeChat').onclick = finish;
+
+  function renderMsgs(m) {
+    const list = Object.values(m).sort((a, b) => (a.timestamp || 1e15) - (b.timestamp || 1e15));
+    $('msgs').innerHTML = list.length ? list.map(x => `
+      <div class="flex ${x.senderId === uid ? 'justify-start' : 'justify-end'}">
+        <div class="max-w-[75%] rounded-2xl px-3.5 py-2 ${x.senderId === uid ? 'bg-acc text-bg' : 'bg-surf'}">
+          <div class="break-words">${h(x.text)}</div><div class="text-[11px] opacity-70 mt-1">${tm(x.timestamp)}</div>
+        </div></div>`).join('')
+      : '<p class="text-center text-mut mt-10 leading-7">ابدأ المحادثة الآن.<br>ستُحذف الغرفة وكل رسائلها عند انتهاء الوقت.</p>';
+    $('msgs').scrollTop = $('msgs').scrollHeight;
+  }
+
+  $('chatForm').onsubmit = e => {
+    e.preventDefault();
+    const t = $('chatInput').value.trim();
+    if (!t || !room || room.done) return;
+    $('chatInput').value = '';
+    push(ref(db, `chats/${room.id}/messages`), { senderId: uid, text: t, timestamp: serverTimestamp() }).catch(() => toast('تعذّر الإرسال'));
+  };
+}
+</script>
+</body>
+</html>
