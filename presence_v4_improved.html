@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12161C">
+<meta name="description" content="حضور — مساحة للقاء والدردشة مع أشخاص متاحين الآن.">
+<title>حضور</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{bg:'#12161C',surf:'#1B2129',acc:'#7FB8AE',ok:'#4CC38A',warn:'#E5A663',mut:'#8F9AA5'}}}}</script>
+<style>html,body{height:100%;min-height:100%;background:#12161C}body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.tnum{font-variant-numeric:tabular-nums}button,input,select{touch-action:manipulation}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #7FB8AE;outline-offset:2px}#msgs,#posts{-webkit-overflow-scrolling:touch}</style>
+</head>
+<body class="text-[#E8ECEF] overflow-hidden">
+
+<!-- أخطاء الإعداد -->
+<div id="setup" style="display:none" class="h-full flex-col items-center justify-center p-6 text-center gap-4">
+  <h2 class="text-2xl font-bold">حضور</h2>
+  <p id="setupMsg" class="text-mut leading-7"></p>
+  <button onclick="location.reload()" class="rounded-xl bg-acc text-bg font-semibold px-6 py-3">إعادة المحاولة</button>
+</div>
+
+<!-- صفحة الدخول -->
+<div id="login" style="display:none" class="h-full max-w-md mx-auto flex-col items-center justify-center p-6 gap-4">
+  <div class="text-center mb-2">
+    <div class="mx-auto mb-3 w-16 h-16 rounded-full border-4 border-acc flex items-center justify-center"><span class="w-6 h-6 rounded-full bg-ok"></span></div>
+    <h1 class="text-4xl font-bold">حضور</h1>
+    <p class="text-mut mt-2">كن حاضرًا الآن مع من هو حاضر</p>
+  </div>
+  <div class="w-full flex rounded-xl bg-surf p-1 text-sm">
+    <button id="tabIn" class="flex-1 rounded-lg py-2 bg-acc text-bg font-semibold">دخول</button>
+    <button id="tabUp" class="flex-1 rounded-lg py-2">حساب جديد</button>
+  </div>
+  <input id="email" type="email" dir="ltr" autocomplete="email" aria-label="البريد الإلكتروني" placeholder="البريد الإلكتروني" class="w-full rounded-xl bg-surf px-4 py-3 outline-none text-left">
+  <input id="pass" type="password" dir="ltr" autocomplete="current-password" aria-label="كلمة السر" placeholder="كلمة السر" class="w-full rounded-xl bg-surf px-4 py-3 outline-none text-left">
+  <p id="authErr" role="alert" aria-live="polite" style="display:none" class="text-warn text-sm text-center"></p>
+  <button id="authBtn" class="w-full rounded-xl bg-acc text-bg font-semibold py-3">دخول</button>
+  <span class="text-mut text-xs">أو</span>
+  <button id="guestBtn" class="w-full rounded-xl bg-surf py-3">دخول سريع كزائر</button>
+  <p class="text-mut text-xs text-center leading-6">حساب الزائر مؤقت ومرتبط بهذا المتصفح. سجّل بالبريد لتحتفظ بحسابك.</p>
+</div>
+
+<div id="app" style="display:none" class="h-full max-w-md mx-auto">
+  <!-- الرئيسية -->
+  <section id="home" class="h-full flex flex-col">
+    <header class="flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-3"><h1 class="text-xl font-bold">حضور</h1><button id="meBtn" class="rounded-full bg-surf px-3 py-1 text-sm">👤</button></div>
+      <div class="flex items-center gap-2 text-sm"><span id="dot" aria-hidden="true" class="w-2.5 h-2.5 rounded-full bg-mut"></span><span id="status" class="text-mut" role="status" aria-live="polite">جارٍ الاتصال...</span></div>
+    </header>
+    <button id="nudge" style="display:none" class="mx-4 mb-1 rounded-xl bg-surf text-warn text-xs py-2 w-[calc(100%-2rem)]">حسابك مؤقت. اضغط هنا واحفظه بالبريد ←</button>
+    <div id="invites" class="px-4 space-y-2"></div>
+    <div id="friends" class="px-4 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div class="px-4 pt-1 pb-1 text-xs text-mut">أنا متاح الآن لـ:</div>
+    <div id="topics" class="px-4 pb-2 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div class="px-4 pb-1 flex items-center gap-2 text-sm"><span class="text-mut">أعرض المتاحين لـ:</span><select id="filter" class="rounded-lg bg-surf px-2 py-1 outline-none"></select></div>
+    <div id="online" class="px-4 py-2 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div id="posts" class="flex-1 overflow-y-auto px-4 py-2 space-y-3"></div>
+    <form id="postForm" class="flex gap-2 p-3 bg-surf">
+      <input id="postInput" maxlength="500" autocomplete="off" placeholder="اكتب فكرة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5">نشر</button>
+    </form>
+  </section>
+
+  <!-- المحادثة -->
+  <section id="chat" class="hidden h-full flex-col">
+    <header class="bg-surf px-4 pt-3 pb-3 text-center">
+      <div class="flex items-center justify-between text-sm text-mut">
+        <span id="chatTitle"></span>
+        <span class="flex gap-3"><button id="repBtn">إبلاغ</button><button id="blkBtn">حظر</button><button id="closeChat" class="text-warn">إنهاء</button></span>
+      </div>
+      <div id="timer" class="tnum text-5xl font-bold text-acc my-1">05:00</div>
+      <div class="h-1 bg-bg rounded"><div id="bar" class="h-1 rounded bg-acc transition-all" style="width:100%"></div></div>
+      <div class="mt-2 flex items-center justify-between text-xs"><span id="lvl" class="text-mut"></span><button id="trustBtn" class="rounded-lg bg-bg px-3 py-1.5 text-acc disabled:text-mut"></button></div>
+    </header>
+    <div id="msgs" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+    <form id="chatForm" class="flex gap-2 p-3 bg-surf">
+      <input id="chatInput" maxlength="1000" autocomplete="off" placeholder="اكتب رسالة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5">إرسال</button>
+    </form>
+  </section>
+</div>
+
+<!-- الملف الشخصي -->
+<div id="profile" style="display:none" class="fixed inset-0 z-50 items-center justify-center p-4 bg-black/70 overflow-y-auto">
+  <div class="w-full max-w-sm rounded-2xl bg-surf p-5 space-y-3 my-auto">
+    <h2 class="text-lg font-bold">ملفك الشخصي</h2>
+    <input id="nameInput" maxlength="15" autocomplete="off" placeholder="اسمك المستعار" class="w-full rounded-xl bg-bg px-4 py-3 outline-none">
+    <div class="text-xs text-mut">الرمز العلني (يراه الجميع)</div>
+    <div id="avatars" class="grid grid-cols-6 gap-2 text-2xl text-center"></div>
+    <div class="text-xs text-mut">صورتك (لا تُكشف إلا بموافقتك)</div>
+    <div class="flex items-center gap-3">
+      <div id="preview"></div>
+      <label class="rounded-xl bg-bg px-3 py-2 text-sm cursor-pointer text-acc">اختر صورة<input id="photoInput" type="file" accept="image/*" class="hidden"></label>
+      <button id="delPhoto" type="button" class="text-xs text-mut">حذف</button>
+    </div>
+    <label class="flex items-center gap-2 text-sm"><input id="pubPhoto" type="checkbox"> إظهار صورتي للجميع</label>
+    <div id="linkBox" style="display:none" class="space-y-2 border-t border-bg pt-3">
+      <div class="text-xs text-mut">احفظ حسابك بالبريد حتى لا تفقده</div>
+      <input id="lEmail" type="email" dir="ltr" autocomplete="email" placeholder="البريد الإلكتروني" class="w-full rounded-xl bg-bg px-4 py-2.5 outline-none text-left text-sm">
+      <input id="lPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة سر (6 أحرف على الأقل)" class="w-full rounded-xl bg-bg px-4 py-2.5 outline-none text-left text-sm">
+      <button id="linkBtn" type="button" class="w-full rounded-xl bg-bg py-2.5 text-acc text-sm">ربط الحساب بالبريد</button>
+    </div>
+    <p id="acctNote" class="text-xs text-mut leading-5"></p>
+    <div class="flex gap-2"><button id="saveProfile" class="flex-1 rounded-xl bg-acc text-bg font-semibold py-3">حفظ</button><button id="cancelProfile" class="rounded-xl bg-bg px-4">إلغاء</button></div>
+    <button id="logout" class="w-full text-sm text-warn py-1">تسجيل الخروج</button>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite" aria-atomic="true" class="hidden fixed bottom-24 inset-x-0 mx-auto w-max max-w-[85%] rounded-xl bg-surf border border-acc px-4 py-2 text-sm z-50"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, EmailAuthProvider, linkWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, onValue, get, set, push, update, remove, onDisconnect, runTransaction, query, limitToLast, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// ═══════════ مفاتيح مشروعك ═══════════
+const firebaseConfig = {
+  apiKey: "AIzaSyA0GV_6FiuCD918bE0k5m3wJH4kjptuYN0",
+  authDomain: "presence-12009.firebaseapp.com",
+  databaseURL: "https://presence-12009-default-rtdb.firebaseio.com",
+  projectId: "presence-12009",
+  appId: "1:720310475903:web:8f44e979a4587bf9d1b34a"
+};
+// ═════════════════════════════════════
+
+const CHAT_MS = 300000; // 5 دقائق
+const AV = ['😀', '😎', '🦊', '🐼', '🦉', '🐯', '🐸', '🌙', '⭐', '🔥', '🌿', '🎧'];
+const TOPICS = ['دردشة عامة', 'مراجعة دراسة', 'ممارسة إنجليزي', 'برمجة', 'نقاش رياضي'];
+const LEVELS = ['مجهول: اسم مستعار فقط', 'الصور مكشوفة', 'صداقة دائمة'];
+const $ = id => document.getElementById(id);
+const show = (id, d) => { $(id).style.display = d; };
+const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tm = t => t ? new Date(t).toLocaleTimeString('ar', {hour:'2-digit', minute:'2-digit'}) : '';
+const toast = m => { const t = $('toast'); t.textContent = m; t.classList.remove('hidden'); clearTimeout(t._x); t._x = setTimeout(() => t.classList.add('hidden'), 3000); };
+const PHOTO_OK = p => typeof p === 'string' && p.length <= 20000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p);
+const authErrors = {
+  'auth/invalid-credential': 'البريد أو كلمة السر غير صحيحة', 'auth/wrong-password': 'البريد أو كلمة السر غير صحيحة',
+  'auth/user-not-found': 'البريد أو كلمة السر غير صحيحة', 'auth/email-already-in-use': 'هذا البريد مسجّل من قبل. اختر "دخول"',
+  'auth/weak-password': 'كلمة السر ضعيفة (6 أحرف على الأقل)', 'auth/invalid-email': 'صيغة البريد غير صحيحة',
+  'auth/empty': 'أدخل البريد وكلمة السر', 'auth/operation-not-allowed': 'فعّل هذه الطريقة من Authentication في لوحة Firebase',
+  'auth/network-request-failed': 'لا يوجد اتصال بالإنترنت', 'auth/too-many-requests': 'محاولات كثيرة، انتظر قليلًا',
+  'auth/unauthorized-domain': 'أضف نطاق الصفحة في Authorized domains',
+  'auth/credential-already-in-use': 'هذا البريد مرتبط بحساب آخر', 'auth/requires-recent-login': 'سجّل الدخول من جديد ثم أعد المحاولة'
+};
+
+const auth = getAuth(initializeApp(firebaseConfig));
+const db = getDatabase();
+let uid = null, isGuest = false, offset = 0, users = {}, posts = [], invites = {}, friends = {}, blocks = {}, photos = {}, tried = {};
+let room = null, filter = '', profileAsked = false, pickedAv = AV[0], photoState, mode = 'in', lastPost = 0, lastMsg = 0;
+const now = () => Date.now() + offset;
+const nm = u => users[u]?.name || (u === uid ? 'أنت' : 'زائر ' + u.slice(0, 4));
+
+// الصورة الحقيقية تظهر فقط لمن يحق له، وإلا يظهر الرمز العلني
+const canSee = u => u === uid || users[u]?.photoPublic || friends[u] || (room && room.other === u && room.level >= 1);
+const face = u => (photos[u] && canSee(u))
+  ? `<img src="${photos[u]}" class="inline-block w-6 h-6 rounded-full object-cover align-middle">`
+  : h(users[u]?.avatar || '👤');
+
+// جلب الصورة من مسار محمي؛ الخادم يرفض الطلب إن لم تكن مسموحًا لك
+async function loadPhoto(u) {
+  if (photos[u]) return;
+  const key = `${u}|${users[u]?.photoPublic ? 1 : 0}${friends[u] ? 1 : 0}${room && room.other === u ? room.level : 0}`;
+  if (tried[key]) return;
+  tried[key] = 1;
+  try {
+    const p = (await get(ref(db, 'photos/' + u))).val();
+    if (PHOTO_OK(p)) { photos[u] = p; renderAll(); if (room?.raw) renderChat(room.raw); }
+  } catch (e) { /* غير مسموح حاليًا */ }
+}
+
+// ── الدخول ──
+function setMode(m) {
+  mode = m;
+  $('authBtn').textContent = m === 'in' ? 'دخول' : 'إنشاء الحساب';
+  $('tabIn').className = 'flex-1 rounded-lg py-2 ' + (m === 'in' ? 'bg-acc text-bg font-semibold' : '');
+  $('tabUp').className = 'flex-1 rounded-lg py-2 ' + (m === 'up' ? 'bg-acc text-bg font-semibold' : '');
+  $('pass').autocomplete = m === 'in' ? 'current-password' : 'new-password';
+  $('tabIn').setAttribute('aria-pressed', String(m === 'in'));
+  $('tabUp').setAttribute('aria-pressed', String(m === 'up'));
+  show('authErr', 'none');
+}
+const showErr = e => { $('authErr').textContent = authErrors[e.code] || 'تعذّر الدخول (' + (e.code || e.message) + ')'; show('authErr', 'block'); };
+$('tabIn').onclick = () => setMode('in');
+$('tabUp').onclick = () => setMode('up');
+$('authBtn').onclick = async () => {
+  const em = $('email').value.trim(), pw = $('pass').value;
+  if (!em || !pw) return showErr({ code: 'auth/empty' });
+  const btn = $('authBtn'); btn.disabled = true;
+  try { await (mode === 'up' ? createUserWithEmailAndPassword : signInWithEmailAndPassword)(auth, em, pw); } catch (e) { showErr(e); } finally { btn.disabled = false; }
+};
+$('guestBtn').onclick = async () => {
+  const btn = $('guestBtn'); btn.disabled = true;
+  try { await signInAnonymously(auth); } catch (e) { showErr(e); } finally { btn.disabled = false; }
+};
+onAuthStateChanged(auth, u => {
+  if (u) { show('login', 'none'); show('app', 'block'); init(u.uid, u.isAnonymous); }
+  else { show('app', 'none'); show('login', 'flex'); }
+});
+onValue(ref(db, '.info/serverTimeOffset'), s => offset = s.val() || 0);
+
+function init(id, anon) {
+  if (uid) return;
+  uid = id; isGuest = anon;
+  const me = ref(db, 'users/' + uid);
+
+  // تتبع الحضور
+  onValue(ref(db, '.info/connected'), async s => {
+    const on = s.val() === true;
+    $('dot').className = 'w-2.5 h-2.5 rounded-full ' + (on ? 'bg-ok' : 'bg-mut');
+    $('status').className = on ? 'text-ok' : 'text-mut';
+    $('status').textContent = on ? 'متصل الآن' : 'غير متصل';
+    if (!on) return;
+    try {
+      await onDisconnect(me).update({ isOnline: false, lastSeen: serverTimestamp() });
+      await update(me, { isOnline: true });
+    } catch (e) { toast('تعذّر تحديث حالة الاتصال (راجع القواعد)'); }
+  });
+
+  onValue(ref(db, 'users'), s => {
+    users = s.val() || {};
+    Object.keys(users).forEach(u => { if (users[u].photoPublic) loadPhoto(u); });
+    renderAll();
+    if (!profileAsked) { profileAsked = true; if (!users[uid]?.name) openProfile(); }
+  });
+  onValue(query(ref(db, 'posts'), limitToLast(50)), s => {
+    posts = Object.values(s.val() || {}).sort((a, b) => (b.timestamp || 1e15) - (a.timestamp || 1e15));
+    renderPosts();
+  });
+  onValue(ref(db, 'invites/' + uid), s => { invites = s.val() || {}; renderInvites(); });
+  onValue(ref(db, 'friends/' + uid), s => { friends = s.val() || {}; Object.keys(friends).forEach(loadPhoto); renderAll(); });
+  onValue(ref(db, 'blocks/' + uid), s => { blocks = s.val() || {}; renderAll(); });
+  loadPhoto(uid);
+}
+
+// ── العرض ──
+function renderAll() { renderMe(); renderTopics(); renderFriends(); renderOnline(); renderPosts(); renderInvites(); }
+function renderMe() { $('meBtn').innerHTML = face(uid) + ' ' + h(users[uid]?.name || 'ملفي'); show('nudge', isGuest ? 'block' : 'none'); }
+function renderTopics() {
+  $('topics').innerHTML = TOPICS.map(t => `<button data-t="${h(t)}" class="shrink-0 rounded-full px-3 py-1.5 text-sm ${users[uid]?.topic === t ? 'bg-acc text-bg font-semibold' : 'bg-surf'}">${h(t)}</button>`).join('');
+}
+function renderFriends() {
+  const list = Object.keys(friends);
+  $('friends').innerHTML = list.length ? '<span class="text-xs text-mut shrink-0 self-center">أصدقائي:</span>' + list.map(u =>
+    `<button data-u="${h(u)}" class="shrink-0 flex items-center gap-2 rounded-full bg-surf px-3 py-1.5 text-sm"><span class="w-2 h-2 rounded-full ${users[u]?.isOnline ? 'bg-ok' : 'bg-mut'}"></span>${face(u)} ${h(nm(u))}</button>`).join('') : '';
+}
+function renderOnline() {
+  const list = Object.keys(users).filter(u => u !== uid && users[u].isOnline && !blocks[u] && (!filter || users[u].topic === filter));
+  $('online').innerHTML = list.length
+    ? list.map(u => `<button data-u="${h(u)}" class="shrink-0 rounded-2xl bg-surf px-3 py-1.5 text-sm text-start"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-ok"></span>${face(u)} ${h(nm(u))}</div>${users[u].topic ? `<div class="text-[11px] text-mut">${h(users[u].topic)}</div>` : ''}</button>`).join('')
+    : '<span class="text-mut text-sm">لا أحد متاح بهذا الاهتمام الآن</span>';
+}
+function renderPosts() {
+  const list = posts.filter(p => users[p.uid]?.isOnline && !blocks[p.uid] && (!filter || users[p.uid].topic === filter));
+  $('posts').innerHTML = list.length ? list.map(p => `
+    <div class="rounded-2xl bg-surf p-3.5">
+      <div class="flex items-center justify-between text-sm mb-2">
+        <button data-u="${h(p.uid)}" class="flex items-center gap-2 font-semibold ${p.uid === uid ? 'text-acc' : ''}"><span class="w-2 h-2 rounded-full bg-ok"></span>${face(p.uid)} ${h(nm(p.uid))}${users[p.uid]?.topic ? `<span class="text-mut text-xs font-normal">· ${h(users[p.uid].topic)}</span>` : ''}</button>
+        <span class="text-mut text-xs">${tm(p.timestamp)}</span>
+      </div>
+      <p class="leading-7 break-words">${h(p.text)}</p>
+    </div>`).join('')
+    : '<p class="text-center text-mut mt-10">لا توجد منشورات من متصلين الآن. كن أول من يكتب</p>';
+}
+function renderInvites() {
+  const list = Object.entries(invites).filter(([k, v]) => !blocks[k] && v.timestamp && now() - v.timestamp < CHAT_MS);
+  $('invites').innerHTML = list.map(([k]) => `
+    <div class="flex items-center gap-2 rounded-xl border border-acc bg-surf px-3 py-2">
+      <span class="flex-1 truncate">${face(k)} ${h(nm(k))} يريد محادثتك</span>
+      <button data-no="${h(k)}" class="text-mut px-2">تجاهل</button>
+      <button data-yes="${h(k)}" class="rounded-lg bg-acc text-bg font-semibold px-4 py-1.5 text-sm">فتح</button>
+    </div>`).join('');
+}
+
+// ── الملف الشخصي ──
+$('avatars').innerHTML = AV.map(a => `<button type="button" data-av="${a}" class="rounded-xl py-1.5">${a}</button>`).join('');
+$('filter').innerHTML = '<option value="">الكل</option>' + TOPICS.map(t => `<option>${h(t)}</option>`).join('');
+$('filter').onchange = e => { filter = e.target.value; renderOnline(); renderPosts(); };
+function pickAv(a) { pickedAv = a; document.querySelectorAll('[data-av]').forEach(b => b.style.background = b.dataset.av === a ? '#7FB8AE55' : 'transparent'); }
+function showPreview(p) { $('preview').innerHTML = PHOTO_OK(p) ? `<img src="${p}" class="w-16 h-16 rounded-full object-cover">` : '<span class="text-mut text-xs">بلا صورة</span>'; }
+function openProfile() {
+  const p = users[uid] || {};
+  $('nameInput').value = p.name || ''; pickAv(p.avatar || AV[0]); $('pubPhoto').checked = !!p.photoPublic;
+  photoState = undefined; showPreview(photos[uid]);
+  $('acctNote').textContent = isGuest ? 'حسابك مؤقت ومرتبط بهذا المتصفح. سجّل بالبريد لتحتفظ به.' : 'مسجّل بالبريد: ' + (auth.currentUser?.email || '');
+  show('linkBox', isGuest ? 'block' : 'none');
+  show('profile', 'flex');
+}
+async function shrink(file) {   // تصغير الصورة إلى 96×96 قبل الحفظ
+  const bmp = await createImageBitmap(file), s = Math.min(bmp.width, bmp.height), c = document.createElement('canvas');
+  c.width = c.height = 96;
+  c.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 96, 96);
+  return c.toDataURL('image/jpeg', 0.7);
+}
+$('meBtn').onclick = openProfile;
+$('cancelProfile').onclick = () => users[uid]?.name ? show('profile', 'none') : toast('اكتب اسمك أولًا');
+$('photoInput').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (!f.type.startsWith('image/')) return toast('اختر ملف صورة صالحًا');
+  if (f.size > 10 * 1024 * 1024) return toast('حجم الصورة كبير؛ الحد الأقصى 10 ميغابايت');
+  try { photoState = await shrink(f); showPreview(photoState); } catch (err) { toast('تعذّر قراءة الصورة'); }
+};
+$('delPhoto').onclick = () => { photoState = null; showPreview(null); };
+$('saveProfile').onclick = async () => {
+  const name = $('nameInput').value.trim();
+  if (name.length < 2) return toast('اكتب اسمًا من حرفين على الأقل');
+  try {
+    await update(ref(db, 'users/' + uid), { name, avatar: pickedAv, photoPublic: $('pubPhoto').checked });
+    if (photoState) { await set(ref(db, 'photos/' + uid), photoState); photos[uid] = photoState; }
+    else if (photoState === null) { await remove(ref(db, 'photos/' + uid)); delete photos[uid]; }
+    show('profile', 'none'); renderAll();
+  } catch (e) { toast('تعذّر الحفظ'); }
+};
+$('nudge').onclick = openProfile;
+$('linkBtn').onclick = async () => {   // ربط حساب الزائر بالبريد: نفس المعرّف، فلا تضيع بياناتك
+  const em = $('lEmail').value.trim(), pw = $('lPass').value;
+  if (!em || !pw) return toast('أدخل البريد وكلمة السر');
+  const btn = $('linkBtn'); btn.disabled = true;
+  try {
+    await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(em, pw));
+    isGuest = false; show('linkBox', 'none'); renderMe();
+    $('acctNote').textContent = 'مسجّل بالبريد: ' + em; toast('تم ربط حسابك بالبريد ✓');
+  } catch (e) { toast(authErrors[e.code] || 'تعذّر الربط (' + (e.code || e.message) + ')'); } finally { btn.disabled = false; }
+};
+$('logout').onclick = async () => {
+  try { await update(ref(db, 'users/' + uid), { isOnline: false }); } catch (e) {}
+  await signOut(auth); location.reload();
+};
+
+// ── النقر ──
+document.addEventListener('click', e => {
+  const u = e.target.closest('[data-u]'), y = e.target.closest('[data-yes]'), n = e.target.closest('[data-no]');
+  const a = e.target.closest('[data-av]'), t = e.target.closest('[data-t]');
+  if (u) openChat(u.dataset.u);
+  if (y) { remove(ref(db, `invites/${uid}/${y.dataset.yes}`)); enterRoom(y.dataset.yes); }
+  if (n) remove(ref(db, `invites/${uid}/${n.dataset.no}`));
+  if (a) pickAv(a.dataset.av);
+  if (t) update(ref(db, 'users/' + uid), { topic: users[uid]?.topic === t.dataset.t ? null : t.dataset.t });
+});
+
+$('postForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('postInput').value.trim();
+  if (!t) return;
+  if (Date.now() - lastPost < 3000) return toast('انتظر ثوانٍ قبل النشر مرة أخرى');
+  lastPost = Date.now(); $('postInput').value = '';
+  push(ref(db, 'posts'), { text: t, uid, timestamp: serverTimestamp() }).catch(() => { if (!$('postInput').value) $('postInput').value = t; toast('تعذّر النشر؛ احتفظنا بنصك لتعيد المحاولة'); });
+};
+
+// ── المحادثة المؤقتة ──
+function openChat(other) {
+  if (other === uid) return toast('هذا أنت. اضغط على مستخدم آخر');
+  if (blocks[other]) return toast('هذا المستخدم محظور');
+  set(ref(db, `invites/${other}/${uid}`), { fromUid: uid, timestamp: serverTimestamp() }).catch(() => {});
+  enterRoom(other);
+}
+
+async function enterRoom(other) {
+  if (room) return;
+  const id = [uid, other].sort().join('_');
+  const roomRef = ref(db, 'chats/' + id), expRef = ref(db, `chats/${id}/expiresAt`);
+  const mine = room = { id, other, seen: false, done: false, exp: 0, myC: 0, otherC: 0, level: 0, msgs: [], raw: {} };
+  $('msgs').innerHTML = ''; $('chatTitle').innerHTML = 'مع ' + face(other) + ' ' + h(nm(other));
+  $('home').classList.replace('flex', 'hidden'); $('chat').classList.replace('hidden', 'flex');
+  try {
+    const t = now(), cur = await get(expRef);
+    if (cur.exists() && cur.val() <= t) await remove(roomRef);      // غرفة منتهية قديمة
+    await runTransaction(expRef, v => (v && v > t) ? v : t + CHAT_MS); // وقت انتهاء مشترك
+  } catch (e) { toast('تعذّر فتح المحادثة'); return leave(); }
+  if (room !== mine) return;
+  mine.unsub = onValue(roomRef, s => {
+    if (room !== mine) return;
+    const v = s.val();
+    if (!v) { if (mine.seen) { toast('أُغلقت المحادثة'); leave(); } return; }
+    mine.seen = true; mine.exp = v.expiresAt; mine.raw = v.messages || {};
+    const c = v.c || {};
+    mine.myC = c[uid] || 0; mine.otherC = c[other] || 0; mine.level = Math.min(mine.myC, mine.otherC);
+    if (mine.level >= 1) loadPhoto(other);
+    if (mine.level >= 2 && !friends[other]) set(ref(db, `friends/${uid}/${other}`), true).then(() => toast('أصبحتما صديقين 🤝')).catch(() => {});
+    renderChat(mine.raw);
+  });
+  mine.timer = setInterval(tick, 500);
+}
+
+function renderChat(m) {
+  if (!room) return;
+  const list = Object.values(m).sort((a, b) => (a.timestamp || 1e15) - (b.timestamp || 1e15));
+  room.msgs = list;
+  $('chatTitle').innerHTML = 'مع ' + face(room.other) + ' ' + h(nm(room.other));
+  $('lvl').textContent = LEVELS[room.level] + (room.otherC > room.myC ? ' · الطرف الآخر وافق ✓' : '');
+  $('trustBtn').textContent = ['اكشف صورتي', 'أريد الصداقة', 'تم ✓'][room.myC];
+  $('trustBtn').disabled = room.myC >= 2;
+  $('msgs').innerHTML = list.length ? list.map(x => `
+    <div class="flex ${x.senderId === uid ? 'justify-start' : 'justify-end'}">
+      <div class="max-w-[75%] rounded-2xl px-3.5 py-2 ${x.senderId === uid ? 'bg-acc text-bg' : 'bg-surf'}">
+        <div class="break-words">${h(x.text)}</div><div class="text-[11px] opacity-70 mt-1">${tm(x.timestamp)}</div>
+      </div></div>`).join('')
+    : '<p class="text-center text-mut mt-10 leading-7">ابدأ المحادثة الآن.<br>ستُحذف الغرفة وكل رسائلها عند انتهاء الوقت.</p>';
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+}
+
+function tick() {
+  if (!room?.exp) return;
+  const left = Math.max(0, Math.min(300, Math.ceil((room.exp - now()) / 1000)));
+  $('timer').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+  $('bar').style.width = (left / 3) + '%';
+  const k = left <= 60 ? 'warn' : 'acc';
+  $('timer').className = `tnum text-5xl font-bold my-1 text-${k}`;
+  $('bar').className = `h-1 rounded transition-all bg-${k}`;
+  if (left <= 0) finish();
+}
+
+async function finish() {    // انتهاء الوقت أو إنهاء المحادثة: حذف الغرفة كلها
+  if (!room || room.done) return;
+  const id = room.id;
+  room.done = true; leave();
+  try { await remove(ref(db, 'chats/' + id)); } catch (e) { toast('تعذّر حذف المحادثة'); }
+}
+function leave() {
+  if (room) { clearInterval(room.timer); room.unsub?.(); }
+  room = null;
+  $('chat').classList.replace('flex', 'hidden'); $('home').classList.replace('hidden', 'flex');
+  renderAll();
+}
+$('closeChat').onclick = finish;
+
+$('trustBtn').onclick = () => {   // رفع مستوى الثقة خطوة بخطوة، ولا يُفتح مستوى إلا بموافقة الطرفين
+  if (!room || room.done) return;
+  if (room.myC === 1 && room.level < 1) return toast('انتظر أن يكشف الطرف الآخر صورته أولًا');
+  set(ref(db, `chats/${room.id}/c/${uid}`), room.myC + 1).catch(() => toast('تعذّر التحديث'));
+};
+$('blkBtn').onclick = () => {
+  if (!room) return;
+  const o = room.other;
+  if (!confirm('حظر ' + nm(o) + '؟ لن ترى منشوراته ولن يستطيع دعوتك.')) return;
+  set(ref(db, `blocks/${uid}/${o}`), true).catch(() => toast('تعذّر الحظر'));
+  finish();
+};
+$('repBtn').onclick = async () => {
+  if (!room) return;
+  const o = room.other;
+  if (!confirm('الإبلاغ عن ' + nm(o) + '؟ ترسَل آخر رسائل المحادثة للمراجعة، ثم يُحظر وتُغلق المحادثة.')) return;
+  const sample = room.msgs.slice(-5).map(m => (m.senderId === uid ? 'أنا' : 'هو') + ': ' + String(m.text).slice(0, 200)).join('\n').slice(0, 1500);
+  try { await push(ref(db, 'reports'), { by: uid, target: o, sample, ts: serverTimestamp() }); toast('تم الإبلاغ'); } catch (e) { toast('تعذّر الإبلاغ'); }
+  set(ref(db, `blocks/${uid}/${o}`), true).catch(() => {});
+  finish();
+};
+
+$('chatForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('chatInput').value.trim();
+  if (!t || !room || room.done) return;
+  if (Date.now() - lastMsg < 800) return toast('على مهلك قليلًا');
+  lastMsg = Date.now(); $('chatInput').value = '';
+  push(ref(db, `chats/${room.id}/messages`), { senderId: uid, text: t, timestamp: serverTimestamp() }).catch(() => { if (!$('chatInput').value) $('chatInput').value = t; toast('تعذّر الإرسال؛ احتفظنا بنصك لتعيد المحاولة'); });
+};
+</script>
+</body>
+</html>
