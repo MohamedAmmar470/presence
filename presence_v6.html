@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#10231f">
+<meta name="theme-color" content="#f5f8f6">
 <meta name="description" content="حضور — تواصل دائم ورسائل نصية وصوتية وصور مع أصدقائك.">
 <title>حضور | محادثاتك وأصدقاؤك</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script>tailwind.config={theme:{extend:{colors:{ink:'#10231f',deep:'#0b1513',panel:'#15231f',panel2:'#1c2d28',line:'#263b35',mint:'#55c7a5',mintdark:'#123d32',paper:'#e6eee9',sub:'#91a69d',alert:'#f1a47a'}}}}</script>
+<script>tailwind.config={theme:{extend:{colors:{ink:'#F5F8F6',deep:'#FFFFFF',panel:'#F0F4F1',panel2:'#E7F0EA',line:'#DFE8E2',mint:'#168A68',mintdark:'#E0F2E9',paper:'#20332B',sub:'#74857C',alert:'#C85749'}}}}</script>
 <style>
-html,body{height:100%;background:#0b1513}body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.tnum{font-variant-numeric:tabular-nums}
+html,body{height:100%;background:#f5f8f6}body{padding:0}.tnum{font-variant-numeric:tabular-nums}#app{height:100dvh;min-height:0;box-sizing:border-box;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}#chatPane,#conversation{min-height:0;overflow:hidden}#msgs{min-height:0;overscroll-behavior:contain}#chatForm{position:sticky;bottom:0;z-index:20;flex-shrink:0;padding-bottom:max(.5rem,env(safe-area-inset-bottom))}#recBar{flex-shrink:0}.voice-hold:active{transform:scale(.96)}#imageViewer img{user-select:none;-webkit-user-drag:none}
 @keyframes recwave{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
-*{scrollbar-width:thin;scrollbar-color:#29443a transparent}button{touch-action:manipulation}input::placeholder{color:#779087}
+*{scrollbar-width:thin;scrollbar-color:#29443a transparent}button{touch-action:manipulation}input::placeholder,textarea::placeholder{color:#98A59E}
 </style>
 </head>
-<body class="text-paper overflow-hidden antialiased">
+<body class="text-paper overflow-hidden antialiased bg-ink">
 <div id="setup" class="hidden h-full flex-col items-center justify-center p-6 text-center gap-4">
  <div class="w-16 h-16 rounded-3xl bg-mintdark text-mint grid place-items-center text-3xl">ح</div><h1 class="text-2xl font-bold">حضور</h1>
  <p id="setupMsg" class="text-sub leading-7 max-w-sm"></p><button onclick="location.reload()" class="rounded-xl bg-mint text-ink font-semibold px-6 py-3">إعادة المحاولة</button>
@@ -45,27 +45,27 @@ html,body{height:100%;background:#0b1513}body{padding:env(safe-area-inset-top) 0
    <footer class="border-t border-line px-4 py-3 text-[11px] text-sub flex items-center justify-between"><span>محادثات دائمة وخاصة</span><button id="directoryBtn" class="text-mint">ابحث عن أصدقاء</button></footer>
   </aside>
   <main id="chatPane" class="hidden md:flex flex-1 min-w-0 flex-col bg-ink">
-   <section id="emptyState" class="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[radial-gradient(ellipse_at_top,#18362d_0%,#10231f_44%,#10231f_100%)]">
+   <section id="emptyState" class="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[radial-gradient(ellipse_at_top,#edf7f1_0%,#f8faf9_48%,#f8faf9_100%)]">
     <div class="w-24 h-24 rounded-[34px] bg-mintdark/80 border border-mint/20 grid place-items-center text-5xl text-mint shadow-xl shadow-black/20">ح</div>
     <h2 class="mt-6 text-2xl font-bold">أهلًا بك في حضور</h2><p class="mt-2 text-sub leading-7 max-w-sm">محادثاتك وأصدقاؤك في مكان واحد.<br>ابدأ محادثة دائمة مع شخص جديد.</p>
     <button id="emptyNewChat" class="mt-6 rounded-xl bg-mint text-ink font-bold px-5 py-3">＋ ابدأ محادثة</button>
     <div class="mt-10 text-[11px] text-sub/70">رسائلك تظهر هنا عند اختيار محادثة</div>
    </section>
-   <section id="conversation" class="hidden flex-1 min-h-0 flex-col">
+   <section id="conversation" class="hidden flex flex-1 min-h-0 flex-col">
     <header class="h-[68px] shrink-0 flex items-center gap-3 px-3 md:px-5 bg-deep/90 border-b border-line">
      <button id="backChats" class="md:hidden w-9 h-9 rounded-lg bg-panel text-xl text-sub">›</button>
      <div id="chatFace" class="w-10 h-10 rounded-full bg-panel2 text-mint grid place-items-center text-lg shrink-0">👤</div>
      <div class="min-w-0 flex-1"><div id="chatTitle" class="font-semibold truncate"></div><div id="chatPresence" class="text-[11px] text-sub"> </div></div>
      <button id="reportBtn" class="px-2 py-2 rounded-lg text-xs text-sub hover:bg-panel">إبلاغ</button><button id="blockBtn" class="px-2 py-2 rounded-lg text-xs text-alert hover:bg-panel">حظر</button>
     </header>
-    <div id="msgs" class="flex-1 min-h-0 overflow-y-auto p-3 md:p-5 space-y-2 bg-[radial-gradient(ellipse_at_center,#142923_0%,#10231f_70%)]"></div>
+    <div id="msgs" class="flex-1 min-h-0 overflow-y-auto p-3 md:p-5 space-y-2 bg-[radial-gradient(ellipse_at_center,#f7faf8_0%,#f1f6f3_70%)]"></div>
     <div id="recBar" class="hidden shrink-0 items-center gap-3 px-4 py-3 bg-panel border-t border-line">
      <span class="w-2.5 h-2.5 rounded-full bg-alert animate-pulse shrink-0"></span><span id="recHint" class="text-[11px] text-alert whitespace-nowrap">اسحب لأعلى للإلغاء</span><div id="recWave" class="flex items-center gap-[3px] h-5 flex-1 overflow-hidden text-mint"></div><span id="recTime" class="tnum text-sm shrink-0">0:00</span><button id="recCancel" class="rounded-lg px-2 py-1 text-alert text-xs">إلغاء</button><button id="recStop" class="w-9 h-9 rounded-full bg-mint text-ink grid place-items-center">➤</button>
     </div>
     <form id="chatForm" class="shrink-0 flex gap-2 items-end px-2 py-2 md:px-4 md:py-3 bg-deep border-t border-line">
      <label title="إرسال صورة" class="w-11 h-11 shrink-0 rounded-xl bg-panel text-mint grid place-items-center text-xl cursor-pointer">＋<input id="photoInput" type="file" accept="image/*" class="hidden"></label>
      <textarea id="chatInput" rows="1" maxlength="1000" placeholder="اكتب رسالة" class="flex-1 resize-none min-w-0 max-h-28 rounded-xl bg-panel px-4 py-3 outline-none focus:ring-1 focus:ring-mint text-sm"></textarea>
-     <button id="micBtn" type="button" aria-label="اضغط مطولًا للتسجيل؛ اسحب لأعلى للإلغاء" title="اضغط مطولًا للتسجيل؛ اسحب لأعلى للإلغاء" class="touch-none select-none w-11 h-11 shrink-0 rounded-xl bg-panel text-mint grid place-items-center text-xl">🎙</button>
+     <button id="micBtn" type="button" aria-label="اضغط مطولًا للتسجيل؛ اسحب لأعلى للإلغاء" title="اضغط مطولًا للتسجيل؛ اسحب لأعلى للإلغاء" class="voice-hold touch-none select-none w-11 h-11 shrink-0 rounded-2xl bg-mintdark text-mint grid place-items-center transition-transform" style="touch-action:none"><svg viewBox="0 0 24 24" aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3" fill="currentColor" stroke="none"></rect><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5M9 21.5h6"></path></svg></button>
      <button class="h-11 rounded-xl bg-mint text-ink font-bold px-4">إرسال</button>
     </form>
    </section>
@@ -91,6 +91,12 @@ html,body{height:100%;background:#0b1513}body{padding:env(safe-area-inset-top) 0
  </section>
 </div>
 <div id="toast" class="hidden fixed z-[60] bottom-6 inset-x-0 mx-auto w-max max-w-[90%] rounded-xl bg-panel border border-line shadow-xl px-4 py-3 text-sm"></div>
+
+<div id="imageViewer" class="hidden fixed inset-0 z-[70] bg-black/90 p-4 sm:p-8 items-center justify-center" role="dialog" aria-modal="true" aria-label="عرض الصورة">
+ <button id="closeImage" class="absolute top-4 end-4 w-11 h-11 rounded-full bg-white/15 text-white text-3xl" aria-label="إغلاق">×</button>
+ <img id="viewerImg" alt="الصورة بالحجم الكامل" class="max-w-full max-h-full rounded-xl object-contain shadow-2xl">
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth,onAuthStateChanged,signInAnonymously,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,EmailAuthProvider,linkWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -145,10 +151,10 @@ function openChat(peer){if(blocks[peer])return toast('هذا المستخدم م
 function backToChats(){if(room){room.unsub?.();room.readUnsub?.();$('msgs').querySelectorAll('audio.voice-audio').forEach(a=>a.pause());room=null}hide('conversation');show('emptyState');$('sidebar').classList.remove('hidden');$('chatPane').classList.add('hidden')}
 function voiceBubbleHTML(id,src,mine){let seed=0;for(const c of id)seed=(seed*31+c.charCodeAt(0))>>>0;let bars='';for(let i=0;i<25;i++){seed=(seed*1103515245+12345)>>>0;bars+=`<span class="w-[3px] shrink-0 rounded-full ${mine?'bg-ink':'bg-mint'}" style="height:${5+seed%14}px"></span>`}return `<div class="flex items-center gap-2 w-56 max-w-full" dir="ltr"><button type="button" data-play="${h(id)}" class="w-8 h-8 shrink-0 rounded-full ${mine?'bg-ink text-mint':'bg-mint text-ink'}">▶</button><div class="relative flex-1 h-5 overflow-hidden"><div class="absolute inset-0 flex items-center gap-[2px] opacity-35">${bars}</div><div data-progress="${h(id)}" class="absolute inset-0 flex items-center gap-[2px] overflow-hidden" style="width:0%">${bars}</div></div><span data-audiotime="${h(id)}" class="text-[11px] tnum shrink-0">0:00</span><audio data-audio="${h(id)}" class="hidden voice-audio" preload="metadata" src="${h(src)}"></audio></div>`}
 function bindAudio(container){container.querySelectorAll('audio.voice-audio').forEach(a=>{if(a.dataset.bound)return;a.dataset.bound='1';const id=a.dataset.audio,btn=container.querySelector(`[data-play="${CSS.escape(id)}"]`),prog=container.querySelector(`[data-progress="${CSS.escape(id)}"]`),time=container.querySelector(`[data-audiotime="${CSS.escape(id)}"]`),fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');a.addEventListener('loadedmetadata',()=>{if(Number.isFinite(a.duration))time.textContent=fmt(a.duration)});a.addEventListener('timeupdate',()=>{prog.style.width=((a.currentTime/(a.duration||1))*100)+'%';time.textContent=fmt(a.currentTime)});a.addEventListener('play',()=>btn.textContent='Ⅱ');a.addEventListener('pause',()=>btn.textContent='▶');a.addEventListener('ended',()=>{btn.textContent='▶';prog.style.width='0%';time.textContent=fmt(a.duration||0)})})}
-function renderMessages(){if(!room)return;const box=$('msgs'),stick=box.scrollHeight-box.scrollTop-box.clientHeight<90,old=new Map([...box.querySelectorAll('[data-message-id]')].map(e=>[e.dataset.messageId,e]));if(!room.msgs.length){box.innerHTML='<div data-empty-chat class="text-center text-sub text-sm mt-10">أرسل أول رسالة لبدء محادثتكما.</div>';return}box.querySelector('[data-empty-chat]')?.remove();for(const m of room.msgs){if(old.has(String(m.id)))continue;const mine=m.senderId===uid;let body=audioOK(m.audio)?voiceBubbleHTML(m.id,m.audio,mine):photoOK(m.photo)?`<img src="${h(m.photo)}" alt="صورة مرسلة" loading="lazy" class="rounded-xl max-w-[240px] max-h-80 object-contain">`:`<div class="whitespace-pre-wrap break-words">${h(m.text||'رسالة غير مدعومة')}</div>`;const wrap=document.createElement('div');wrap.dataset.messageId=m.id;wrap.className='flex '+(mine?'justify-start':'justify-end');wrap.innerHTML=`<div class="max-w-[82%] rounded-2xl px-3.5 py-2 shadow-sm ${mine?'bg-mint text-ink rounded-br-md':'bg-panel2 text-paper rounded-bl-md'}">${body}<div class="flex items-center justify-end gap-1 mt-1 text-[10px] opacity-70"><span>${tm(m.timestamp)}</span>${mine?`<span data-read-mark="${h(m.id)}">${room.otherRead>=m.timestamp?'✓✓':'✓'}</span>`:''}</div></div>`;box.appendChild(wrap)}if(stick)box.scrollTop=box.scrollHeight;bindAudio(box);updateReadMarks()}
+function renderMessages(){if(!room)return;const box=$('msgs'),stick=box.scrollHeight-box.scrollTop-box.clientHeight<90,old=new Map([...box.querySelectorAll('[data-message-id]')].map(e=>[e.dataset.messageId,e]));if(!room.msgs.length){box.innerHTML='<div data-empty-chat class="text-center text-sub text-sm mt-10">أرسل أول رسالة لبدء محادثتكما.</div>';return}box.querySelector('[data-empty-chat]')?.remove();for(const m of room.msgs){if(old.has(String(m.id)))continue;const mine=m.senderId===uid;let body=audioOK(m.audio)?voiceBubbleHTML(m.id,m.audio,mine):photoOK(m.photo)?`<button type="button" data-open-image="${h(m.id)}" class="block cursor-zoom-in" aria-label="فتح الصورة بالحجم الكامل"><img src="${h(m.photo)}" alt="صورة مرسلة؛ اضغط للتكبير" loading="lazy" class="rounded-xl max-w-[240px] max-h-80 object-contain"></button>`:`<div class="whitespace-pre-wrap break-words">${h(m.text||'رسالة غير مدعومة')}</div>`;const wrap=document.createElement('div');wrap.dataset.messageId=m.id;wrap.className='flex '+(mine?'justify-start':'justify-end');wrap.innerHTML=`<div class="max-w-[82%] rounded-2xl px-3.5 py-2 shadow-sm ${mine?'bg-mint text-ink rounded-br-md':'bg-panel2 text-paper rounded-bl-md'}">${body}<div class="flex items-center justify-end gap-1 mt-1 text-[10px] opacity-70"><span>${tm(m.timestamp)}</span>${mine?`<span data-read-mark="${h(m.id)}">${room.otherRead>=m.timestamp?'✓✓':'✓'}</span><button type="button" data-delete-message="${h(m.id)}" class="ms-2 text-[10px] opacity-70 hover:opacity-100 underline underline-offset-2" aria-label="حذف الرسالة لدى الجميع">حذف</button>`:''}</div></div>`;box.appendChild(wrap)}const keep=new Set(room.msgs.map(m=>String(m.id)));old.forEach((node,id)=>{if(!keep.has(id))node.remove()});if(stick)box.scrollTop=box.scrollHeight;bindAudio(box);updateReadMarks()}
 function updateReadMarks(){if(!room)return;for(const m of room.msgs){if(m.senderId===uid){const mark=[...$('msgs').querySelectorAll('[data-read-mark]')].find(e=>e.dataset.readMark===String(m.id));if(mark)mark.textContent=room.otherRead>=m.timestamp?'✓✓':'✓'}}}
 window.toggleVoice=()=>{};
-$('msgs').addEventListener('click',e=>{const b=e.target.closest('[data-play]');if(!b)return;const id=b.dataset.play,a=[...$('msgs').querySelectorAll('audio.voice-audio')].find(x=>x.dataset.audio===id);if(!a)return;document.querySelectorAll('audio.voice-audio').forEach(x=>{if(x!==a&&!x.paused)x.pause()});a.paused?a.play().catch(()=>toast('تعذّر تشغيل الصوت')):a.pause()});
+$('msgs').addEventListener('click',async e=>{const del=e.target.closest('[data-delete-message]');if(del){if(!room)return;const id=del.dataset.deleteMessage,msg=room.msgs.find(m=>m.id===id);if(!msg||msg.senderId!==uid)return;if(!confirm('حذف هذه الرسالة لدى الطرفين؟'))return;try{await remove(ref(db,`pchats/${room.id}/messages/${id}`));toast('تم حذف الرسالة لدى الطرفين')}catch(err){toast('تعذّر حذف الرسالة؛ تحقّق من قواعد Firebase')}return}const image=e.target.closest('[data-open-image]');if(image){const m=room?.msgs.find(x=>x.id===image.dataset.openImage);if(m&&photoOK(m.photo)){$('viewerImg').src=m.photo;show('imageViewer','flex')}return}const b=e.target.closest('[data-play]');if(!b)return;const id=b.dataset.play,a=[...$('msgs').querySelectorAll('audio.voice-audio')].find(x=>x.dataset.audio===id);if(!a)return;document.querySelectorAll('audio.voice-audio').forEach(x=>{if(x!==a&&!x.paused)x.pause()});a.paused?a.play().catch(()=>toast('تعذّر تشغيل الصوت')):a.pause()});$('closeImage').onclick=()=>{hide('imageViewer');$('viewerImg').removeAttribute('src')};$('imageViewer').addEventListener('click',e=>{if(e.target===$('imageViewer'))$('closeImage').click()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('imageViewer').classList.contains('hidden'))$('closeImage').click()});
 $('chatItems').addEventListener('click',e=>{const b=e.target.closest('[data-chat]');if(b)openChat(b.dataset.chat)});
 $('requests').addEventListener('click',e=>{const a=e.target.closest('[data-accept]'),d=e.target.closest('[data-decline]');if(a)acceptRequest(a.dataset.accept);if(d){update(ref(db,`invites/${uid}/${d.dataset.decline}`),{declined:true,declinedAt:serverTimestamp()}).catch(()=>toast('تعذّر رفض الطلب'))}});
 $('directoryUsers').addEventListener('click',e=>{const a=e.target.closest('[data-add]'),c=e.target.closest('[data-directory-chat]'),ok=e.target.closest('[data-accept]');if(a)sendRequest(a.dataset.add);if(c){hide('directory');openChat(c.dataset.directoryChat)}if(ok)acceptRequest(ok.dataset.accept)});
