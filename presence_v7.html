@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12161C">
+<title>حضور — الإصدار 7</title>
+<meta name="description" content="تطبيق حضور للدردشة والتعارف باهتمامات مشتركة، مع محادثات دائمة ورسائل صوتية وصور.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{bg:'#12161C',surf:'#1B2129',acc:'#7FB8AE',ok:'#4CC38A',warn:'#E5A663',mut:'#8F9AA5'}}}}</script>
+<style>html,body{height:100%;background:#12161C}body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.tnum{font-variant-numeric:tabular-nums}@keyframes recwave{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}</style>
+</head>
+<body class="text-[#E8ECEF] overflow-hidden">
+
+<!-- أخطاء الإعداد -->
+<div id="setup" style="display:none" class="h-full flex-col items-center justify-center p-6 text-center gap-4">
+  <h2 class="text-2xl font-bold">حضور</h2>
+  <p id="setupMsg" class="text-mut leading-7"></p>
+  <button onclick="location.reload()" class="rounded-xl bg-acc text-bg font-semibold px-6 py-3">إعادة المحاولة</button>
+</div>
+
+<!-- صفحة الدخول -->
+<div id="login" style="display:none" class="h-full max-w-md mx-auto flex-col items-center justify-center p-6 gap-4">
+  <div class="text-center mb-2">
+    <div class="mx-auto mb-3 w-16 h-16 rounded-full border-4 border-acc flex items-center justify-center"><span class="w-6 h-6 rounded-full bg-ok"></span></div>
+    <h1 class="text-4xl font-bold">حضور</h1>
+    <p class="text-mut mt-2">كن حاضرًا الآن مع من هو حاضر</p>
+  </div>
+  <div class="w-full flex rounded-xl bg-surf p-1 text-sm">
+    <button id="tabIn" class="flex-1 rounded-lg py-2 bg-acc text-bg font-semibold">دخول</button>
+    <button id="tabUp" class="flex-1 rounded-lg py-2">حساب جديد</button>
+  </div>
+  <input id="email" type="email" dir="ltr" autocomplete="email" placeholder="البريد الإلكتروني" class="w-full rounded-xl bg-surf px-4 py-3 outline-none text-left">
+  <input id="pass" type="password" dir="ltr" autocomplete="current-password" placeholder="كلمة السر" class="w-full rounded-xl bg-surf px-4 py-3 outline-none text-left">
+  <p id="authErr" style="display:none" class="text-warn text-sm text-center"></p>
+  <button id="authBtn" class="w-full rounded-xl bg-acc text-bg font-semibold py-3">دخول</button>
+  <span class="text-mut text-xs">أو</span>
+  <button id="guestBtn" class="w-full rounded-xl bg-surf py-3">دخول سريع كزائر</button>
+  <p class="text-mut text-xs text-center leading-6">حساب الزائر مؤقت ومرتبط بهذا المتصفح. سجّل بالبريد لتحتفظ بحسابك.</p>
+</div>
+
+<div id="app" style="display:none" class="h-full max-w-md mx-auto">
+  <!-- الرئيسية -->
+  <section id="home" class="h-full flex flex-col">
+    <header class="flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-3"><h1 class="text-xl font-bold">حضور</h1><button id="meBtn" class="rounded-full bg-surf px-3 py-1 text-sm">👤</button><button id="chatsBtn" class="relative rounded-full bg-surf px-3 py-1 text-sm">💬<span id="chatsDot" class="hidden absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-warn"></span></button></div>
+      <div class="flex items-center gap-2 text-sm"><span id="dot" class="w-2.5 h-2.5 rounded-full bg-mut"></span><span id="status" class="text-mut">جارٍ الاتصال...</span></div>
+    </header>
+    <button id="nudge" style="display:none" class="mx-4 mb-1 rounded-xl bg-surf text-warn text-xs py-2 w-[calc(100%-2rem)]">حسابك مؤقت. اضغط هنا واحفظه بالبريد ←</button>
+    <div id="invites" class="px-4 space-y-2"></div>
+    <div id="friends" class="px-4 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div class="px-4 pt-1 pb-1 text-xs text-mut">أنا متاح الآن لـ:</div>
+    <div id="topics" class="px-4 pb-2 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div class="px-4 pb-1 flex items-center gap-2 text-sm"><span class="text-mut">أعرض المتاحين لـ:</span><select id="filter" class="rounded-lg bg-surf px-2 py-1 outline-none"></select></div>
+    <div id="online" class="px-4 py-2 flex gap-2 overflow-x-auto shrink-0"></div>
+    <div id="posts" class="flex-1 overflow-y-auto px-4 py-2 space-y-3"></div>
+    <form id="postForm" class="flex gap-2 p-3 bg-surf">
+      <input id="postInput" maxlength="500" autocomplete="off" placeholder="اكتب فكرة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5">نشر</button>
+    </form>
+  </section>
+
+  <!-- المحادثة -->
+  <section id="chat" class="hidden h-full flex-col">
+    <header class="bg-surf px-4 pt-3 pb-3 text-center">
+      <div class="flex items-center justify-between text-sm text-mut">
+        <span id="chatTitle"></span>
+        <span class="flex gap-3"><button id="repBtn">إبلاغ</button><button id="blkBtn">حظر</button><button id="closeChat" class="text-warn">إنهاء</button></span>
+      </div>
+      <div id="timer" class="tnum text-5xl font-bold text-acc my-1">05:00</div>
+      <div class="h-1 bg-bg rounded"><div id="bar" class="h-1 rounded bg-acc transition-all" style="width:100%"></div></div>
+      <div class="mt-2 flex items-center justify-between text-xs"><span id="lvl" class="text-mut"></span><button id="trustBtn" class="rounded-lg bg-bg px-3 py-1.5 text-acc disabled:text-mut"></button></div>
+    </header>
+    <div id="msgs" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+    <div id="recBar" style="display:none" class="flex items-center gap-3 px-4 py-3 bg-surf">
+      <button id="recCancel" class="text-warn text-lg leading-none">🗑</button>
+      <span class="w-2.5 h-2.5 rounded-full bg-warn animate-pulse shrink-0"></span>
+      <span id="recHint" class="text-[10px] text-warn whitespace-nowrap">اسحب لأعلى للإلغاء</span>
+      <div id="recWave" class="flex items-center gap-[3px] h-5 flex-1 overflow-hidden text-acc"></div>
+      <span id="recTime" class="tnum text-sm shrink-0">0:00</span>
+      <button id="recStop" class="w-9 h-9 rounded-full bg-acc text-bg flex items-center justify-center shrink-0">➤</button>
+    </div>
+    <form id="chatForm" class="flex gap-2 p-3 bg-surf items-center">
+      <input id="chatInput" maxlength="1000" autocomplete="off" placeholder="اكتب رسالة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <button id="micBtn" type="button" aria-label="اضغط مطولًا للتسجيل الصوتي" title="اضغط مطولًا للتسجيل؛ اسحب لأعلى للإلغاء" class="touch-none select-none rounded-xl bg-bg px-4 py-3 flex items-center justify-center text-acc">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z"/><path d="M19 12a7 7 0 01-14 0H3a9 9 0 008 8.94V23h2v-2.06A9 9 0 0021 12h-2z"/></svg>
+      </button>
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5 py-3">إرسال</button>
+    </form>
+  </section>
+
+  <!-- قائمة المحادثات الدائمة -->
+  <section id="chatsList" class="hidden h-full flex-col">
+    <header class="flex items-center gap-3 px-4 py-3 bg-surf">
+      <button id="backHome" class="text-xl leading-none">→</button>
+      <h2 class="text-lg font-bold flex-1">المحادثات</h2>
+    </header>
+    <div id="chatItems" class="flex-1 overflow-y-auto"></div>
+  </section>
+
+  <!-- محادثة دائمة (بشكل واتساب) -->
+  <section id="pchat" class="hidden h-full flex-col">
+    <header class="flex items-center gap-3 px-4 py-3 bg-surf">
+      <button id="backList" class="text-xl leading-none">→</button>
+      <span id="pchatTitle" class="font-semibold flex-1 flex items-center gap-2 min-w-0 truncate"></span>
+      <button id="pRepBtn" class="text-xs text-mut shrink-0">إبلاغ</button>
+      <button id="pBlkBtn" class="text-xs text-warn shrink-0">حظر</button>
+    </header>
+    <div id="pmsgs" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+    <div id="recBar2" style="display:none" class="flex items-center gap-3 px-4 py-3 bg-surf">
+      <button id="recCancel2" class="text-warn text-lg leading-none">🗑</button>
+      <span class="w-2.5 h-2.5 rounded-full bg-warn animate-pulse shrink-0"></span>
+      <span id="recHint2" class="text-[10px] text-warn whitespace-nowrap">اسحب لأعلى للإلغاء</span>
+      <div id="recWave2" class="flex items-center gap-[3px] h-5 flex-1 overflow-hidden text-acc"></div>
+      <span id="recTime2" class="tnum text-sm shrink-0">0:00</span>
+      <button id="recStop2" class="w-9 h-9 rounded-full bg-acc text-bg flex items-center justify-center shrink-0">➤</button>
+    </div>
+    <form id="pchatForm" class="flex gap-2 p-3 bg-surf items-center">
+      <input id="pchatInput" maxlength="1000" autocomplete="off" placeholder="اكتب رسالة..." class="flex-1 min-w-0 rounded-xl bg-bg px-4 py-3 outline-none">
+      <label class="rounded-xl bg-bg px-4 py-3 flex items-center cursor-pointer text-acc">📷<input id="pPhotoInput" type="file" accept="image/*" class="hidden"></label>
+      <button id="pMicBtn" type="button" aria-label="اضغط مطولًا للتسجيل الصوتي" title="اضغط مطولًا للتسجيل؛ اسحب لأعلى للإلغاء" class="touch-none select-none rounded-xl bg-bg px-4 py-3 flex items-center justify-center text-acc">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z"/><path d="M19 12a7 7 0 01-14 0H3a9 9 0 008 8.94V23h2v-2.06A9 9 0 0021 12h-2z"/></svg>
+      </button>
+      <button class="rounded-xl bg-acc text-bg font-semibold px-5 py-3">إرسال</button>
+    </form>
+  </section>
+</div>
+
+<!-- الملف الشخصي -->
+<div id="profile" style="display:none" class="fixed inset-0 z-50 items-center justify-center p-4 bg-black/70 overflow-y-auto">
+  <div class="w-full max-w-sm rounded-2xl bg-surf p-5 space-y-3 my-auto">
+    <h2 class="text-lg font-bold">ملفك الشخصي</h2>
+    <input id="nameInput" maxlength="15" autocomplete="off" placeholder="اسمك المستعار" class="w-full rounded-xl bg-bg px-4 py-3 outline-none">
+    <div class="text-xs text-mut">الرمز العلني (يراه الجميع)</div>
+    <div id="avatars" class="grid grid-cols-6 gap-2 text-2xl text-center"></div>
+    <div class="text-xs text-mut">صورتك (لا تُكشف إلا بموافقتك)</div>
+    <div class="flex items-center gap-3">
+      <div id="preview"></div>
+      <label class="rounded-xl bg-bg px-3 py-2 text-sm cursor-pointer text-acc">اختر صورة<input id="photoInput" type="file" accept="image/*" class="hidden"></label>
+      <button id="delPhoto" type="button" class="text-xs text-mut">حذف</button>
+    </div>
+    <label class="flex items-center gap-2 text-sm"><input id="pubPhoto" type="checkbox"> إظهار صورتي للجميع</label>
+    <div id="linkBox" style="display:none" class="space-y-2 border-t border-bg pt-3">
+      <div class="text-xs text-mut">احفظ حسابك بالبريد حتى لا تفقده</div>
+      <input id="lEmail" type="email" dir="ltr" autocomplete="email" placeholder="البريد الإلكتروني" class="w-full rounded-xl bg-bg px-4 py-2.5 outline-none text-left text-sm">
+      <input id="lPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة سر (6 أحرف على الأقل)" class="w-full rounded-xl bg-bg px-4 py-2.5 outline-none text-left text-sm">
+      <button id="linkBtn" type="button" class="w-full rounded-xl bg-bg py-2.5 text-acc text-sm">ربط الحساب بالبريد</button>
+    </div>
+    <p id="acctNote" class="text-xs text-mut leading-5"></p>
+    <div class="flex gap-2"><button id="saveProfile" class="flex-1 rounded-xl bg-acc text-bg font-semibold py-3">حفظ</button><button id="cancelProfile" class="rounded-xl bg-bg px-4">إلغاء</button></div>
+    <button id="logout" class="w-full text-sm text-warn py-1">تسجيل الخروج</button>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-24 inset-x-0 mx-auto w-max max-w-[85%] rounded-xl bg-surf border border-acc px-4 py-2 text-sm z-50"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, EmailAuthProvider, linkWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, onValue, get, set, push, update, remove, onDisconnect, runTransaction, query, limitToLast, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// ═══════════ مفاتيح مشروعك ═══════════
+const firebaseConfig = {
+  apiKey: "AIzaSyA0GV_6FiuCD918bE0k5m3wJH4kjptuYN0",
+  authDomain: "presence-12009.firebaseapp.com",
+  databaseURL: "https://presence-12009-default-rtdb.firebaseio.com",
+  projectId: "presence-12009",
+  appId: "1:720310475903:web:8f44e979a4587bf9d1b34a"
+};
+// ═════════════════════════════════════
+
+const CHAT_MS = 300000; // 5 دقائق
+const AV = ['😀', '😎', '🦊', '🐼', '🦉', '🐯', '🐸', '🌙', '⭐', '🔥', '🌿', '🎧'];
+const TOPICS = ['دردشة عامة', 'مراجعة دراسة', 'ممارسة إنجليزي', 'برمجة', 'نقاش رياضي'];
+const LEVELS = ['مجهول: اسم مستعار فقط', 'الصور مكشوفة', 'صداقة دائمة'];
+const $ = id => document.getElementById(id);
+const show = (id, d) => { $(id).style.display = d; };
+const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tm = t => t ? new Date(t).toLocaleTimeString('ar', {hour:'2-digit', minute:'2-digit'}) : '';
+const toast = m => { const t = $('toast'); t.textContent = m; t.classList.remove('hidden'); clearTimeout(t._x); t._x = setTimeout(() => t.classList.add('hidden'), 3000); };
+const PHOTO_OK = p => typeof p === 'string' && p.length <= 20000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p);
+const CHAT_PHOTO_OK = p => typeof p === 'string' && p.length <= 80000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p);
+const AUDIO_OK = a => typeof a === 'string' && a.length <= 150000 && /^data:audio\/(?:webm|mp4)(?:;codecs=[a-z0-9._-]+)?;base64,[A-Za-z0-9+/=]+$/i.test(a);
+
+// ── فقاعة رسالة صوتية بشكل موجة (بديل عن مشغّل المتصفح الافتراضي) ──
+function barHeights(id) {
+  let seed = 0; for (const c of id) seed = (seed * 31 + c.charCodeAt(0)) >>> 0;
+  const out = [];
+  for (let i = 0; i < 24; i++) { seed = (seed * 1103515245 + 12345) >>> 0; out.push(5 + (seed % 13)); }
+  return out;
+}
+function voiceBubbleHTML(id, src, mine) {
+  const heights = barHeights(id);
+  const bars = c => heights.map(hpx => `<span class="w-[3px] shrink-0 rounded-full ${c}" style="height:${hpx}px"></span>`).join('');
+  return `
+  <div class="flex items-center gap-2 w-56 max-w-full" dir="ltr">
+    <button type="button" onclick="toggleVoice('${id}')" id="pbtn_${id}" class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm ${mine ? 'bg-bg text-acc' : 'bg-acc text-bg'}">▶</button>
+    <div class="relative flex-1 h-5 overflow-hidden">
+      <div class="absolute inset-0 flex items-center gap-[2px] opacity-40">${bars(mine ? 'bg-bg' : 'bg-[#E8ECEF]')}</div>
+      <div id="ov_${id}" class="absolute inset-0 flex items-center gap-[2px] overflow-hidden" style="width:0%">${bars(mine ? 'bg-bg' : 'bg-acc')}</div>
+    </div>
+    <span id="tm_${id}" class="text-[11px] tnum shrink-0">0:00</span>
+    <audio id="aud_${h(id)}" class="hidden voice-audio" preload="metadata" src="${h(src)}"></audio>
+  </div>`;
+}
+window.toggleVoice = function (id) {
+  const el = document.getElementById('aud_' + id);
+  if (!el) return;
+  document.querySelectorAll('audio.voice-audio').forEach(a => { if (a !== el && !a.paused) a.pause(); });
+  el.paused ? el.play().catch(() => {}) : el.pause();
+};
+function bindVoiceEls(container) {
+  container.querySelectorAll('audio.voice-audio').forEach(aud => {
+    if (aud.dataset.bound) return;
+    aud.dataset.bound = '1';
+    const id = aud.id.slice(4), ov = document.getElementById('ov_' + id), btn = document.getElementById('pbtn_' + id), tmEl = document.getElementById('tm_' + id);
+    if (!ov || !btn || !tmEl) return;
+    const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    aud.addEventListener('loadedmetadata', () => { if (isFinite(aud.duration)) tmEl.textContent = fmt(aud.duration); });
+    aud.addEventListener('timeupdate', () => {
+      const d = aud.duration || 0;
+      if (d) ov.style.width = (aud.currentTime / d * 100) + '%';
+      tmEl.textContent = fmt(aud.currentTime || 0);
+    });
+    aud.addEventListener('play', () => { btn.textContent = '⏸'; });
+    aud.addEventListener('pause', () => { btn.textContent = '▶'; });
+    aud.addEventListener('ended', () => { btn.textContent = '▶'; ov.style.width = '0%'; tmEl.textContent = isFinite(aud.duration) ? fmt(aud.duration) : '0:00'; });
+  });
+}
+// موجة متحركة أثناء التسجيل نفسه (مجرد مؤشر بصري، وليست تحليلًا حقيقيًا للصوت)
+function waveBars(el) {
+  el.innerHTML = Array.from({ length: 20 }, (_, i) =>
+    `<span class="w-[3px] rounded-full bg-current" style="height:14px;animation:recwave 1s ease-in-out infinite;animation-delay:${(i % 5) * .12}s"></span>`
+  ).join('');
+}
+const authErrors = {
+  'auth/invalid-credential': 'البريد أو كلمة السر غير صحيحة', 'auth/wrong-password': 'البريد أو كلمة السر غير صحيحة',
+  'auth/user-not-found': 'البريد أو كلمة السر غير صحيحة', 'auth/email-already-in-use': 'هذا البريد مسجّل من قبل. اختر "دخول"',
+  'auth/weak-password': 'كلمة السر ضعيفة (6 أحرف على الأقل)', 'auth/invalid-email': 'صيغة البريد غير صحيحة',
+  'auth/empty': 'أدخل البريد وكلمة السر', 'auth/operation-not-allowed': 'فعّل هذه الطريقة من Authentication في لوحة Firebase',
+  'auth/network-request-failed': 'لا يوجد اتصال بالإنترنت', 'auth/too-many-requests': 'محاولات كثيرة، انتظر قليلًا',
+  'auth/unauthorized-domain': 'أضف نطاق الصفحة في Authorized domains',
+  'auth/credential-already-in-use': 'هذا البريد مرتبط بحساب آخر', 'auth/requires-recent-login': 'سجّل الدخول من جديد ثم أعد المحاولة'
+};
+
+const auth = getAuth(initializeApp(firebaseConfig));
+const db = getDatabase();
+let uid = null, isGuest = false, offset = 0, users = {}, posts = [], invites = {}, friends = {}, blocks = {}, photos = {}, tried = {};
+let room = null, filter = '', profileAsked = false, pickedAv = AV[0], photoState, mode = 'in', lastPost = 0, lastMsg = 0, lastPMsg = 0;
+let curP = null, pPreview = {}, pPreviewUnsub = {}, myReads = {};
+const now = () => Date.now() + offset;
+const nm = u => users[u]?.name || (u === uid ? 'أنت' : 'زائر ' + u.slice(0, 4));
+
+// الصورة الحقيقية تظهر فقط لمن يحق له، وإلا يظهر الرمز العلني
+const canSee = u => u === uid || users[u]?.photoPublic || friends[u] || (room && room.other === u && room.level >= 1);
+const face = u => (photos[u] && canSee(u))
+  ? `<img src="${photos[u]}" class="inline-block w-6 h-6 rounded-full object-cover align-middle">`
+  : h(users[u]?.avatar || '👤');
+
+// جلب الصورة من مسار محمي؛ الخادم يرفض الطلب إن لم تكن مسموحًا لك
+async function loadPhoto(u) {
+  if (photos[u]) return;
+  const key = `${u}|${users[u]?.photoPublic ? 1 : 0}${friends[u] ? 1 : 0}${room && room.other === u ? room.level : 0}`;
+  if (tried[key]) return;
+  tried[key] = 1;
+  try {
+    const p = (await get(ref(db, 'photos/' + u))).val();
+    if (PHOTO_OK(p)) { photos[u] = p; renderAll(); if (room?.raw) renderChat(room.raw); if (curP) renderPChat(curP.msgs); }
+  } catch (e) { /* غير مسموح حاليًا */ }
+}
+
+// ── الدخول ──
+function setMode(m) {
+  mode = m;
+  $('authBtn').textContent = m === 'in' ? 'دخول' : 'إنشاء الحساب';
+  $('tabIn').className = 'flex-1 rounded-lg py-2 ' + (m === 'in' ? 'bg-acc text-bg font-semibold' : '');
+  $('tabUp').className = 'flex-1 rounded-lg py-2 ' + (m === 'up' ? 'bg-acc text-bg font-semibold' : '');
+  $('pass').autocomplete = m === 'in' ? 'current-password' : 'new-password';
+  show('authErr', 'none');
+}
+const showErr = e => { $('authErr').textContent = authErrors[e.code] || 'تعذّر الدخول (' + (e.code || e.message) + ')'; show('authErr', 'block'); };
+$('tabIn').onclick = () => setMode('in');
+$('tabUp').onclick = () => setMode('up');
+$('authBtn').onclick = async () => {
+  const em = $('email').value.trim(), pw = $('pass').value;
+  if (!em || !pw) return showErr({ code: 'auth/empty' });
+  try { await (mode === 'up' ? createUserWithEmailAndPassword : signInWithEmailAndPassword)(auth, em, pw); } catch (e) { showErr(e); }
+};
+$('guestBtn').onclick = () => signInAnonymously(auth).catch(showErr);
+onAuthStateChanged(auth, u => {
+  if (u) { show('login', 'none'); show('app', 'block'); init(u.uid, u.isAnonymous); }
+  else { show('app', 'none'); show('login', 'flex'); }
+});
+onValue(ref(db, '.info/serverTimeOffset'), s => offset = s.val() || 0);
+
+function init(id, anon) {
+  if (uid) return;
+  uid = id; isGuest = anon;
+  const me = ref(db, 'users/' + uid);
+
+  // تتبع الحضور
+  onValue(ref(db, '.info/connected'), async s => {
+    const on = s.val() === true;
+    $('dot').className = 'w-2.5 h-2.5 rounded-full ' + (on ? 'bg-ok' : 'bg-mut');
+    $('status').className = on ? 'text-ok' : 'text-mut';
+    $('status').textContent = on ? 'متصل الآن' : 'غير متصل';
+    if (!on) return;
+    try {
+      await onDisconnect(me).update({ isOnline: false, lastSeen: serverTimestamp() });
+      await update(me, { isOnline: true });
+    } catch (e) { toast('تعذّر تحديث حالة الاتصال (راجع القواعد)'); }
+  });
+
+  onValue(ref(db, 'users'), s => {
+    users = s.val() || {};
+    Object.keys(users).forEach(u => { if (users[u].photoPublic) loadPhoto(u); });
+    renderAll();
+    if (!profileAsked) { profileAsked = true; if (!users[uid]?.name) openProfile(); }
+  });
+  onValue(query(ref(db, 'posts'), limitToLast(50)), s => {
+    posts = Object.values(s.val() || {}).sort((a, b) => (b.timestamp || 1e15) - (a.timestamp || 1e15));
+    renderPosts();
+  });
+  onValue(ref(db, 'invites/' + uid), s => { invites = s.val() || {}; renderInvites(); });
+  onValue(ref(db, 'friends/' + uid), s => {
+    friends = s.val() || {};
+    Object.keys(friends).forEach(u => { loadPhoto(u); trackFriendPreview(u); });
+    renderAll(); renderChatsList();
+  });
+  onValue(ref(db, 'blocks/' + uid), s => { blocks = s.val() || {}; renderAll(); });
+  loadPhoto(uid);
+}
+
+// ── العرض ──
+function renderAll() { renderMe(); renderTopics(); renderFriends(); renderOnline(); renderPosts(); renderInvites(); }
+function renderMe() { $('meBtn').innerHTML = face(uid) + ' ' + h(users[uid]?.name || 'ملفي'); show('nudge', isGuest ? 'block' : 'none'); }
+function renderTopics() {
+  $('topics').innerHTML = TOPICS.map(t => `<button data-t="${h(t)}" class="shrink-0 rounded-full px-3 py-1.5 text-sm ${users[uid]?.topic === t ? 'bg-acc text-bg font-semibold' : 'bg-surf'}">${h(t)}</button>`).join('');
+}
+function renderFriends() {
+  const list = Object.keys(friends);
+  $('friends').innerHTML = list.length ? '<span class="text-xs text-mut shrink-0 self-center">أصدقائي:</span>' + list.map(u =>
+    `<button data-u="${h(u)}" data-friend="1" class="shrink-0 flex items-center gap-2 rounded-full bg-surf px-3 py-1.5 text-sm"><span class="w-2 h-2 rounded-full ${users[u]?.isOnline ? 'bg-ok' : 'bg-mut'}"></span>${face(u)} ${h(nm(u))}</button>`).join('') : '';
+}
+function renderOnline() {
+  const list = Object.keys(users).filter(u => u !== uid && users[u].isOnline && !blocks[u] && (!filter || users[u].topic === filter));
+  $('online').innerHTML = list.length
+    ? list.map(u => `<button data-u="${h(u)}" class="shrink-0 rounded-2xl bg-surf px-3 py-1.5 text-sm text-start"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-ok"></span>${face(u)} ${h(nm(u))}</div>${users[u].topic ? `<div class="text-[11px] text-mut">${h(users[u].topic)}</div>` : ''}</button>`).join('')
+    : '<span class="text-mut text-sm">لا أحد متاح بهذا الاهتمام الآن</span>';
+}
+function renderPosts() {
+  const list = posts.filter(p => users[p.uid]?.isOnline && !blocks[p.uid] && (!filter || users[p.uid].topic === filter));
+  $('posts').innerHTML = list.length ? list.map(p => `
+    <div class="rounded-2xl bg-surf p-3.5">
+      <div class="flex items-center justify-between text-sm mb-2">
+        <button data-u="${h(p.uid)}" class="flex items-center gap-2 font-semibold ${p.uid === uid ? 'text-acc' : ''}"><span class="w-2 h-2 rounded-full bg-ok"></span>${face(p.uid)} ${h(nm(p.uid))}${users[p.uid]?.topic ? `<span class="text-mut text-xs font-normal">· ${h(users[p.uid].topic)}</span>` : ''}</button>
+        <span class="text-mut text-xs">${tm(p.timestamp)}</span>
+      </div>
+      <p class="leading-7 break-words">${h(p.text)}</p>
+    </div>`).join('')
+    : '<p class="text-center text-mut mt-10">لا توجد منشورات من متصلين الآن. كن أول من يكتب</p>';
+}
+function renderInvites() {
+  const list = Object.entries(invites).filter(([k, v]) => !blocks[k] && v.timestamp && now() - v.timestamp < CHAT_MS);
+  $('invites').innerHTML = list.map(([k]) => `
+    <div class="flex items-center gap-2 rounded-xl border border-acc bg-surf px-3 py-2">
+      <span class="flex-1 truncate">${face(k)} ${h(nm(k))} يريد محادثتك</span>
+      <button data-no="${h(k)}" class="text-mut px-2">تجاهل</button>
+      <button data-yes="${h(k)}" class="rounded-lg bg-acc text-bg font-semibold px-4 py-1.5 text-sm">فتح</button>
+    </div>`).join('');
+}
+
+// ── قائمة المحادثات الدائمة (بشكل واتساب) ──
+const pRoomId = u => [uid, u].sort().join('_');
+function trackFriendPreview(u) {
+  if (pPreviewUnsub[u]) return;
+  const rid = pRoomId(u);
+  pPreviewUnsub[u] = onValue(query(ref(db, `pchats/${rid}/messages`), limitToLast(1)), s => {
+    const v = s.val();
+    pPreview[u] = v ? Object.values(v)[0] : null;
+    renderChatsList();
+  });
+  onValue(ref(db, `pchats/${rid}/reads/${uid}`), s => { myReads[u] = s.val() || 0; renderChatsList(); });
+}
+function isUnread(u) {
+  const msg = pPreview[u];
+  return !!(msg && msg.senderId !== uid && (!myReads[u] || myReads[u] < msg.timestamp));
+}
+function renderChatsList() {
+  const list = Object.keys(friends).filter(u => !blocks[u]);
+  $('chatsDot').classList.toggle('hidden', !list.some(isUnread));
+  $('chatItems').innerHTML = list.length ? list.map(u => {
+    const msg = pPreview[u], unread = isUnread(u);
+    const preview = !msg ? 'ابدأ المحادثة الآن' : AUDIO_OK(msg.audio) ? '🎤 رسالة صوتية' : CHAT_PHOTO_OK(msg.photo) ? '📷 صورة' : h(msg.text || '');
+    return `
+    <button data-pu="${h(u)}" class="w-full flex items-center gap-3 px-4 py-3 border-b border-bg text-start">
+      <div class="relative shrink-0 text-2xl leading-none">${face(u)}<span class="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full border-2 border-bg ${users[u]?.isOnline ? 'bg-ok' : 'bg-mut'}"></span></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2"><span class="font-semibold truncate">${h(nm(u))}</span><span class="text-[11px] text-mut shrink-0">${msg ? tm(msg.timestamp) : ''}</span></div>
+        <div class="text-sm truncate ${unread ? 'text-acc font-semibold' : 'text-mut'}">${preview}</div>
+      </div>
+      ${unread ? '<span class="w-2.5 h-2.5 rounded-full bg-acc shrink-0"></span>' : ''}
+    </button>`;
+  }).join('') : '<p class="text-center text-mut mt-10 p-4 leading-7">لا يوجد أصدقاء بعد.<br>اكسب صداقة من محادثة مؤقتة أولًا (سلّم الثقة).</p>';
+}
+
+// ── الملف الشخصي ──
+$('avatars').innerHTML = AV.map(a => `<button type="button" data-av="${a}" class="rounded-xl py-1.5">${a}</button>`).join('');
+$('filter').innerHTML = '<option value="">الكل</option>' + TOPICS.map(t => `<option>${h(t)}</option>`).join('');
+$('filter').onchange = e => { filter = e.target.value; renderOnline(); renderPosts(); };
+function pickAv(a) { pickedAv = a; document.querySelectorAll('[data-av]').forEach(b => b.style.background = b.dataset.av === a ? '#7FB8AE55' : 'transparent'); }
+function showPreview(p) { $('preview').innerHTML = PHOTO_OK(p) ? `<img src="${p}" class="w-16 h-16 rounded-full object-cover">` : '<span class="text-mut text-xs">بلا صورة</span>'; }
+function openProfile() {
+  const p = users[uid] || {};
+  $('nameInput').value = p.name || ''; pickAv(p.avatar || AV[0]); $('pubPhoto').checked = !!p.photoPublic;
+  photoState = undefined; showPreview(photos[uid]);
+  $('acctNote').textContent = isGuest ? 'حسابك مؤقت ومرتبط بهذا المتصفح. سجّل بالبريد لتحتفظ به.' : 'مسجّل بالبريد: ' + (auth.currentUser?.email || '');
+  show('linkBox', isGuest ? 'block' : 'none');
+  show('profile', 'flex');
+}
+async function shrink(file) {   // تصغير الصورة إلى 96×96 قبل الحفظ
+  const bmp = await createImageBitmap(file), s = Math.min(bmp.width, bmp.height), c = document.createElement('canvas');
+  c.width = c.height = 96;
+  c.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 96, 96);
+  return c.toDataURL('image/jpeg', 0.7);
+}
+$('meBtn').onclick = openProfile;
+$('cancelProfile').onclick = () => users[uid]?.name ? show('profile', 'none') : toast('اكتب اسمك أولًا');
+$('photoInput').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (!f.type.startsWith('image/')) return toast('اختر ملف صورة صالحًا');
+  if (f.size > 10 * 1024 * 1024) return toast('حجم الصورة قبل الضغط يجب ألا يتجاوز 10 ميغابايت');
+  try { photoState = await shrink(f); showPreview(photoState); } catch (err) { toast('تعذّر قراءة الصورة'); }
+};
+$('delPhoto').onclick = () => { photoState = null; showPreview(null); };
+$('saveProfile').onclick = async () => {
+  const name = $('nameInput').value.trim();
+  if (name.length < 2) return toast('اكتب اسمًا من حرفين على الأقل');
+  try {
+    await update(ref(db, 'users/' + uid), { name, avatar: pickedAv, photoPublic: $('pubPhoto').checked });
+    if (photoState) { await set(ref(db, 'photos/' + uid), photoState); photos[uid] = photoState; }
+    else if (photoState === null) { await remove(ref(db, 'photos/' + uid)); delete photos[uid]; }
+    show('profile', 'none'); renderAll();
+  } catch (e) { toast('تعذّر الحفظ'); }
+};
+$('nudge').onclick = openProfile;
+$('linkBtn').onclick = async () => {   // ربط حساب الزائر بالبريد: نفس المعرّف، فلا تضيع بياناتك
+  const em = $('lEmail').value.trim(), pw = $('lPass').value;
+  if (!em || !pw) return toast('أدخل البريد وكلمة السر');
+  try {
+    await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(em, pw));
+    isGuest = false; show('linkBox', 'none'); renderMe();
+    $('acctNote').textContent = 'مسجّل بالبريد: ' + em; toast('تم ربط حسابك بالبريد ✓');
+  } catch (e) { toast(authErrors[e.code] || 'تعذّر الربط (' + (e.code || e.message) + ')'); }
+};
+$('logout').onclick = async () => {
+  try { await update(ref(db, 'users/' + uid), { isOnline: false }); } catch (e) {}
+  await signOut(auth); location.reload();
+};
+
+// ── النقر ──
+document.addEventListener('click', e => {
+  const u = e.target.closest('[data-u]'), y = e.target.closest('[data-yes]'), n = e.target.closest('[data-no]');
+  const a = e.target.closest('[data-av]'), t = e.target.closest('[data-t]');
+  const pu = e.target.closest('[data-pu]');
+  if (u) { u.dataset.friend ? openPChat(u.dataset.u) : openChat(u.dataset.u); }
+  if (pu) openPChat(pu.dataset.pu);
+  if (y) { remove(ref(db, `invites/${uid}/${y.dataset.yes}`)); enterRoom(y.dataset.yes); }
+  if (n) remove(ref(db, `invites/${uid}/${n.dataset.no}`));
+  if (a) pickAv(a.dataset.av);
+  if (t) update(ref(db, 'users/' + uid), { topic: users[uid]?.topic === t.dataset.t ? null : t.dataset.t });
+});
+$('chatsBtn').onclick = () => { $('home').classList.replace('flex', 'hidden'); $('chatsList').classList.replace('hidden', 'flex'); renderChatsList(); };
+$('backHome').onclick = () => { $('chatsList').classList.replace('flex', 'hidden'); $('home').classList.replace('hidden', 'flex'); };
+$('backList').onclick = () => { leavePChat(); $('pchat').classList.replace('flex', 'hidden'); $('chatsList').classList.replace('hidden', 'flex'); renderChatsList(); };
+
+$('postForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('postInput').value.trim();
+  if (!t) return;
+  if (Date.now() - lastPost < 3000) return toast('انتظر ثوانٍ قبل النشر مرة أخرى');
+  lastPost = Date.now(); $('postInput').value = '';
+  push(ref(db, 'posts'), { text: t, uid, timestamp: serverTimestamp() }).catch(() => toast('تعذّر النشر'));
+};
+
+// ── المحادثة المؤقتة ──
+function openChat(other) {
+  if (other === uid) return toast('هذا أنت. اضغط على مستخدم آخر');
+  if (blocks[other]) return toast('هذا المستخدم محظور');
+  set(ref(db, `invites/${other}/${uid}`), { fromUid: uid, timestamp: serverTimestamp() }).catch(() => {});
+  enterRoom(other);
+}
+
+async function enterRoom(other) {
+  if (room) return;
+  const id = [uid, other].sort().join('_');
+  const roomRef = ref(db, 'chats/' + id), expRef = ref(db, `chats/${id}/expiresAt`);
+  const mine = room = { id, other, seen: false, done: false, exp: 0, myC: 0, otherC: 0, level: 0, msgs: [], raw: {} };
+  $('msgs').innerHTML = ''; $('chatTitle').innerHTML = 'مع ' + face(other) + ' ' + h(nm(other));
+  $('home').classList.replace('flex', 'hidden'); $('chat').classList.replace('hidden', 'flex');
+  try {
+    const t = now(), cur = await get(expRef);
+    if (cur.exists() && cur.val() <= t) await remove(roomRef);      // غرفة منتهية قديمة
+    await runTransaction(expRef, v => (v && v > t) ? v : t + CHAT_MS); // وقت انتهاء مشترك
+  } catch (e) { toast('تعذّر فتح المحادثة'); return leave(); }
+  if (room !== mine) return;
+  mine.unsub = onValue(roomRef, s => {
+    if (room !== mine) return;
+    const v = s.val();
+    if (!v) { if (mine.seen) { toast('أُغلقت المحادثة'); leave(); } return; }
+    mine.seen = true; mine.exp = v.expiresAt; mine.raw = v.messages || {};
+    const c = v.c || {};
+    mine.myC = c[uid] || 0; mine.otherC = c[other] || 0; mine.level = Math.min(mine.myC, mine.otherC);
+    if (mine.level >= 1) loadPhoto(other);
+    if (mine.level >= 2 && !friends[other]) set(ref(db, `friends/${uid}/${other}`), true).then(() => toast('أصبحتما صديقين 🤝')).catch(() => {});
+    renderChat(mine.raw);
+  });
+  mine.timer = setInterval(tick, 500);
+}
+
+function renderMessageList(container, list, renderItem, emptyHTML) {
+  const stickToBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 90;
+  const existing = new Map([...container.querySelectorAll('[data-message-id]')].map(el => [el.dataset.messageId, el]));
+  const wanted = new Set(list.map(x => String(x.id)));
+  container.querySelector('[data-empty-state]')?.remove();
+  if (!list.length) {
+    existing.forEach(el => el.remove());
+    container.innerHTML = `<p data-empty-state class="text-center text-mut mt-10 leading-7">${emptyHTML}</p>`;
+    return;
+  }
+  for (const item of list) {
+    const key = String(item.id);
+    if (!existing.has(key)) {
+      const template = document.createElement('template');
+      template.innerHTML = renderItem(item).trim();
+      const node = template.content.firstElementChild;
+      if (node) container.appendChild(node);
+    }
+  }
+  existing.forEach((el, key) => { if (!wanted.has(key)) el.remove(); });
+  // لا نعيد بناء عناصر الرسائل الموجودة: هذا يُبقي مشغّل الصوت نفسه حيًا عند وصول رسالة جديدة.
+  if (stickToBottom) container.scrollTop = container.scrollHeight;
+  bindVoiceEls(container);
+}
+
+function renderChat(m) {
+  if (!room) return;
+  const list = Object.entries(m).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.timestamp || 1e15) - (b.timestamp || 1e15));
+  room.msgs = list;
+  $('chatTitle').innerHTML = 'مع ' + face(room.other) + ' ' + h(nm(room.other));
+  $('lvl').textContent = LEVELS[room.level] + (room.otherC > room.myC ? ' · الطرف الآخر وافق ✓' : '');
+  $('trustBtn').textContent = ['اكشف صورتي', 'أريد الصداقة', 'تم ✓'][room.myC];
+  $('trustBtn').disabled = room.myC >= 2;
+  renderMessageList($('msgs'), list, x => `
+    <div data-message-id="${h(x.id)}" class="flex ${x.senderId === uid ? 'justify-start' : 'justify-end'}">
+      <div class="max-w-[75%] rounded-2xl px-3.5 py-2 ${x.senderId === uid ? 'bg-acc text-bg' : 'bg-surf'}">
+        ${AUDIO_OK(x.audio) ? voiceBubbleHTML(x.id, x.audio, x.senderId === uid) : `<div class="break-words">${h(x.text || '[رسالة وسائط غير صالحة]')}</div>`}
+        <div class="text-[11px] opacity-70 mt-1">${tm(x.timestamp)}</div>
+      </div></div>`, 'ابدأ المحادثة الآن.<br>ستُحذف الغرفة وكل رسائلها عند انتهاء الوقت.');
+}
+
+function tick() {
+  if (!room?.exp) return;
+  const left = Math.max(0, Math.min(300, Math.ceil((room.exp - now()) / 1000)));
+  $('timer').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+  $('bar').style.width = (left / 3) + '%';
+  const k = left <= 60 ? 'warn' : 'acc';
+  $('timer').className = `tnum text-5xl font-bold my-1 text-${k}`;
+  $('bar').className = `h-1 rounded transition-all bg-${k}`;
+  if (left <= 0) finish();
+}
+
+async function finish() {    // انتهاء الوقت أو إنهاء المحادثة: حذف الغرفة كلها
+  if (!room || room.done) return;
+  const id = room.id;
+  room.done = true; leave();
+  try { await remove(ref(db, 'chats/' + id)); } catch (e) { toast('تعذّر حذف المحادثة'); }
+}
+function leave() {
+  if (room) { clearInterval(room.timer); room.unsub?.(); }
+  room = null;
+  $('chat').classList.replace('flex', 'hidden'); $('home').classList.replace('hidden', 'flex');
+  renderAll();
+}
+$('closeChat').onclick = finish;
+
+// ── المحادثة الدائمة (بشكل واتساب) ──
+async function openPChat(other) {
+  if (blocks[other]) return toast('هذا المستخدم محظور؛ أزل الحظر من ملفك أولًا');
+  if (curP && curP.other === other) { $('chatsList').classList.replace('flex', 'hidden'); $('pchat').classList.replace('hidden', 'flex'); return; }
+  if (curP) leavePChat();
+  const id = pRoomId(other);
+  const mine = curP = { id, other, unsub: null, unsubRead: null, msgs: [], otherRead: 0 };
+  $('pmsgs').innerHTML = ''; $('pchatTitle').innerHTML = face(other) + ' ' + h(nm(other));
+  $('chatsList').classList.replace('flex', 'hidden'); $('pchat').classList.replace('hidden', 'flex');
+  loadPhoto(other);
+  set(ref(db, `pchats/${id}/reads/${uid}`), serverTimestamp()).catch(() => {});
+  mine.unsub = onValue(ref(db, `pchats/${id}/messages`), s => {
+    if (curP !== mine) return;
+    const v = s.val() || {};
+    mine.msgs = Object.entries(v).map(([mid, m]) => ({ id: mid, ...m })).sort((a, b) => (a.timestamp || 1e15) - (b.timestamp || 1e15));
+    renderPChat(mine.msgs);
+    set(ref(db, `pchats/${id}/reads/${uid}`), serverTimestamp()).catch(() => {}); // نعلّم كمقروءة فور وصول أي رسالة والمحادثة مفتوحة
+  });
+  mine.unsubRead = onValue(ref(db, `pchats/${id}/reads/${other}`), s => { mine.otherRead = s.val() || 0; renderPChat(mine.msgs); });
+}
+function leavePChat() {
+  if (curP) { curP.unsub?.(); curP.unsubRead?.(); }
+  curP = null;
+}
+
+async function moderatePermanentChat(report) {
+  if (!curP) return;
+  const other = curP.other;
+  if (report) {
+    if (!confirm('الإبلاغ عن ' + nm(other) + '؟ سيُرسل آخر نصوص المحادثة للمراجعة ثم يُحظر المستخدم.')) return;
+    const sample = curP.msgs.slice(-5).map(m => (m.senderId === uid ? 'أنا' : 'هو') + ': ' + String(m.text ?? (m.audio ? '[رسالة صوتية]' : m.photo ? '[صورة]' : '')).slice(0, 200)).join('\n').slice(0, 1500);
+    try {
+      await push(ref(db, 'reports'), { by: uid, target: other, sample, ts: serverTimestamp() });
+    } catch (e) { toast('تعذّر إرسال البلاغ؛ لم يُحظر المستخدم'); return; }
+    toast('تم إرسال البلاغ');
+  } else if (!confirm('حظر ' + nm(other) + '؟ ستختفي المحادثة من قائمتك ولن يستطيع دعوتك.')) return;
+  try {
+    await set(ref(db, `blocks/${uid}/${other}`), true);
+    await remove(ref(db, `friends/${uid}/${other}`));
+    leavePChat(); $('pchat').classList.replace('flex', 'hidden'); $('chatsList').classList.replace('hidden', 'flex');
+    toast(report ? 'تم الإبلاغ والحظر' : 'تم الحظر');
+  } catch (e) { toast('تعذّر إكمال الحظر؛ تحقّق من اتصالك'); }
+}
+$('pRepBtn').onclick = () => moderatePermanentChat(true);
+$('pBlkBtn').onclick = () => moderatePermanentChat(false);
+function renderPChat(list) {
+  if (!curP) return;
+  $('pchatTitle').innerHTML = face(curP.other) + ' ' + h(nm(curP.other));
+  renderMessageList($('pmsgs'), list, x => {
+    const mine = x.senderId === uid;
+    const body = AUDIO_OK(x.audio) ? voiceBubbleHTML(x.id, x.audio, mine)
+      : CHAT_PHOTO_OK(x.photo) ? `<img src="${h(x.photo)}" alt="صورة مرسلة في المحادثة" loading="lazy" class="rounded-lg max-w-[220px] max-h-72 object-cover">`
+      : `<div class="break-words">${h(x.text)}</div>`;
+    const ticks = mine ? `<span data-read-mark="${h(x.id)}" class="text-[13px]" style="color:${curP.otherRead >= x.timestamp ? '#53BDEB' : 'currentColor'}; opacity:${curP.otherRead >= x.timestamp ? 1 : .7}">${curP.otherRead >= x.timestamp ? '✓✓' : '✓'}</span>` : '';
+    return `<div data-message-id="${h(x.id)}" class="flex ${mine ? 'justify-start' : 'justify-end'}">
+      <div class="max-w-[80%] rounded-2xl px-3 py-2 ${mine ? 'bg-acc text-bg' : 'bg-surf'}">
+        ${body}
+        <div class="flex items-center justify-end gap-1 text-[11px] opacity-70 mt-1">${tm(x.timestamp)} ${ticks}</div>
+      </div></div>`;
+  }, 'ابدأ محادثتكما الدائمة الآن');
+  for (const x of list) {
+    const mark = [...$('pmsgs').querySelectorAll('[data-read-mark]')].find(el => el.dataset.readMark === String(x.id));
+    if (mark) { const read = curP.otherRead >= x.timestamp; mark.textContent = read ? '✓✓' : '✓'; mark.style.color = read ? '#53BDEB' : 'currentColor'; mark.style.opacity = read ? '1' : '.7'; }
+  }
+}
+async function shrinkChat(file) {   // تصغير صورة المحادثة مع الحفاظ على أبعادها (لا تقصّ مربّعة كالصورة الشخصية)
+  const bmp = await createImageBitmap(file);
+  const maxDim = 480;
+  let w = bmp.width, hh = bmp.height;
+  if (w >= hh && w > maxDim) { hh = Math.round(hh * maxDim / w); w = maxDim; }
+  else if (hh > w && hh > maxDim) { w = Math.round(w * maxDim / hh); hh = maxDim; }
+  const c = document.createElement('canvas'); c.width = w; c.height = hh;
+  c.getContext('2d').drawImage(bmp, 0, 0, w, hh);
+  return c.toDataURL('image/jpeg', 0.6);
+}
+$('pchatForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('pchatInput').value.trim();
+  if (!t || !curP) return;
+  if (Date.now() - lastPMsg < 800) return toast('على مهلك قليلًا');
+  lastPMsg = Date.now(); $('pchatInput').value = '';
+  push(ref(db, `pchats/${curP.id}/messages`), { senderId: uid, text: t, timestamp: serverTimestamp() }).catch(() => toast('تعذّر الإرسال'));
+};
+$('pPhotoInput').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f || !curP) return;
+  if (!f.type.startsWith('image/')) return toast('اختر ملف صورة صالحًا');
+  if (f.size > 10 * 1024 * 1024) return toast('حجم الصورة قبل الضغط يجب ألا يتجاوز 10 ميغابايت');
+  try {
+    const b64 = await shrinkChat(f);
+    if (b64.length > 80000) return toast('الصورة كبيرة، جرّب صورة أصغر');
+    push(ref(db, `pchats/${curP.id}/messages`), { senderId: uid, photo: b64, timestamp: serverTimestamp() }).catch(() => toast('تعذّر إرسال الصورة'));
+  } catch (err) { toast('تعذّر قراءة الصورة'); }
+};
+
+$('trustBtn').onclick = () => {   // رفع مستوى الثقة خطوة بخطوة، ولا يُفتح مستوى إلا بموافقة الطرفين
+  if (!room || room.done) return;
+  if (room.myC === 1 && room.level < 1) return toast('انتظر أن يكشف الطرف الآخر صورته أولًا');
+  set(ref(db, `chats/${room.id}/c/${uid}`), room.myC + 1).catch(() => toast('تعذّر التحديث'));
+};
+$('blkBtn').onclick = () => {
+  if (!room) return;
+  const o = room.other;
+  if (!confirm('حظر ' + nm(o) + '؟ لن ترى منشوراته ولن يستطيع دعوتك.')) return;
+  set(ref(db, `blocks/${uid}/${o}`), true).catch(() => toast('تعذّر الحظر'));
+  finish();
+};
+$('repBtn').onclick = async () => {
+  if (!room) return;
+  const o = room.other;
+  if (!confirm('الإبلاغ عن ' + nm(o) + '؟ ترسَل آخر رسائل المحادثة للمراجعة، ثم يُحظر وتُغلق المحادثة.')) return;
+  const sample = room.msgs.slice(-5).map(m => (m.senderId === uid ? 'أنا' : 'هو') + ': ' + String(m.text ?? (m.audio ? '[رسالة صوتية]' : '')).slice(0, 200)).join('\n').slice(0, 1500);
+  try { await push(ref(db, 'reports'), { by: uid, target: o, sample, ts: serverTimestamp() }); toast('تم الإبلاغ'); } catch (e) { toast('تعذّر الإبلاغ'); }
+  set(ref(db, `blocks/${uid}/${o}`), true).catch(() => {});
+  finish();
+};
+
+// ── تسجيل صوتي (يعمل داخل المحادثة المؤقتة والدائمة معًا) ──
+const AUDIO_MAX_CHARS = 150000; // نحو 20 ثانية بجودة منخفضة
+let recRec = null, recChunks = [], recStream = null, recSec = 0, recTimer2 = null, recCancelled = false, recCtx = null;
+let holdState = null;
+async function startRec(ctx) {
+  const targetRef = ctx.targetRef();
+  if (!targetRef) return toast('افتح محادثة أولًا');
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return toast('التسجيل الصوتي غير مدعوم في هذا المتصفح');
+  try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) {
+    holdState = null;
+    $('micBtn').classList.remove('text-warn', 'scale-95'); $('pMicBtn').classList.remove('text-warn', 'scale-95');
+    return toast('لم يُسمح باستخدام الميكروفون');
+  }
+  // ربما رفع المستخدم إصبعه أثناء انتظار إذن الميكروفون؛ لا نبدأ تسجيلًا عالقًا.
+  if (holdState?.released || !ctx.targetRef()) {
+    recStream.getTracks().forEach(t => t.stop()); recStream = null;
+    const released = holdState?.released; holdState = null;
+    if (released) toast('أبقِ إصبعك ضاغطًا أثناء التسجيل');
+    return;
+  }
+  recCtx = ctx; recChunks = []; recCancelled = false; recSec = 0;
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => MediaRecorder.isTypeSupported?.(t)) || '';
+  try { recRec = new MediaRecorder(recStream, mime ? { mimeType: mime, audioBitsPerSecond: 16000 } : undefined); }
+  catch (e) { recStream.getTracks().forEach(t => t.stop()); recStream = null; holdState = null; return toast('تعذّر بدء التسجيل على هذا الجهاز'); }
+  recRec.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+  recRec.onstop = onRecStop;
+  recRec.start();
+  ctx.ui.time.textContent = '0:00'; ctx.ui.bar.style.display = 'flex'; waveBars(ctx.ui.wave);
+  if (ctx.ui.hint) { ctx.ui.hint.textContent = 'اسحب لأعلى للإلغاء'; ctx.ui.hint.classList.add('text-warn'); ctx.ui.hint.classList.remove('text-acc'); }
+  recTimer2 = setInterval(() => {
+    recSec++;
+    ctx.ui.time.textContent = Math.floor(recSec / 60) + ':' + String(recSec % 60).padStart(2, '0');
+    if (recSec >= 20) stopRec(false);
+  }, 1000);
+}
+function stopRec(cancel) {
+  recCancelled = cancel;
+  clearInterval(recTimer2);
+  if (recRec && recRec.state !== 'inactive') recRec.stop();
+  recStream?.getTracks().forEach(t => t.stop());
+  recStream = null;
+  if (recCtx) recCtx.ui.bar.style.display = 'none';
+  if (holdState) holdState = null;
+}
+async function onRecStop() {
+  const ctx = recCtx;
+  if (recCancelled || !recChunks.length || !ctx) return;
+  if (recSec < 1) return toast('التسجيل قصير جدًا');
+  const blob = new Blob(recChunks, { type: recRec.mimeType || 'audio/webm' });
+  const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+  if (b64.length > AUDIO_MAX_CHARS) return toast('التسجيل طويل جدًا، جرّب مدة أقصر');
+  const targetRef = ctx.targetRef();
+  if (!targetRef) return toast('انتهت المحادثة');
+  push(targetRef, { senderId: uid, audio: b64, timestamp: serverTimestamp() }).catch(() => toast('تعذّر إرسال التسجيل'));
+}
+function recordingContext(permanent) {
+  return permanent ? {
+    targetRef: () => curP ? ref(db, `pchats/${curP.id}/messages`) : null,
+    ui: { bar: $('recBar2'), time: $('recTime2'), wave: $('recWave2'), hint: $('recHint2') }
+  } : {
+    targetRef: () => (room && !room.done) ? ref(db, `chats/${room.id}/messages`) : null,
+    ui: { bar: $('recBar'), time: $('recTime'), wave: $('recWave'), hint: $('recHint') }
+  };
+}
+function bindHoldToRecord(button, permanent) {
+  button.addEventListener('contextmenu', e => e.preventDefault());
+  button.addEventListener('pointerdown', e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    if (holdState || (recRec && recRec.state === 'recording')) return;
+    holdState = { pointerId: e.pointerId, startY: e.clientY, cancel: false, released: false };
+    try { button.setPointerCapture(e.pointerId); } catch (_) {}
+    button.classList.add('text-warn', 'scale-95');
+    startRec(recordingContext(permanent));
+  });
+  button.addEventListener('pointermove', e => {
+    if (!holdState || holdState.pointerId !== e.pointerId) return;
+    if (holdState.startY - e.clientY > 65 && !holdState.cancel) {
+      holdState.cancel = true;
+      const hint = recordingContext(permanent).ui.hint;
+      if (hint) { hint.textContent = 'أفلت للإلغاء'; hint.classList.remove('text-warn'); hint.classList.add('text-acc'); }
+    } else if (holdState.startY - e.clientY <= 65 && holdState.cancel) {
+      holdState.cancel = false;
+      const hint = recordingContext(permanent).ui.hint;
+      if (hint) { hint.textContent = 'اسحب لأعلى للإلغاء'; hint.classList.add('text-warn'); hint.classList.remove('text-acc'); }
+    }
+  });
+  const finishPointer = e => {
+    if (!holdState || holdState.pointerId !== e.pointerId) return;
+    const state = holdState;
+    button.classList.remove('text-warn', 'scale-95');
+    if (recRec && recRec.state === 'recording') stopRec(state.cancel);
+    else state.released = true;
+  };
+  button.addEventListener('pointerup', finishPointer);
+  button.addEventListener('pointercancel', e => {
+    if (!holdState || holdState.pointerId !== e.pointerId) return;
+    button.classList.remove('text-warn', 'scale-95');
+    if (recRec && recRec.state === 'recording') stopRec(true);
+    else { holdState.released = true; }
+  });
+  button.addEventListener('lostpointercapture', e => {
+    if (holdState && holdState.pointerId === e.pointerId && recRec?.state === 'recording') stopRec(true);
+  });
+}
+bindHoldToRecord($('micBtn'), false);
+bindHoldToRecord($('pMicBtn'), true);
+$('recStop').onclick = () => stopRec(false);
+$('recCancel').onclick = () => stopRec(true);
+$('recStop2').onclick = () => stopRec(false);
+$('recCancel2').onclick = () => stopRec(true);
+
+$('chatForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('chatInput').value.trim();
+  if (!t || !room || room.done) return;
+  if (Date.now() - lastMsg < 800) return toast('على مهلك قليلًا');
+  lastMsg = Date.now(); $('chatInput').value = '';
+  push(ref(db, `chats/${room.id}/messages`), { senderId: uid, text: t, timestamp: serverTimestamp() }).catch(() => toast('تعذّر الإرسال'));
+};
+</script>
+</body>
+</html>
